@@ -2,16 +2,13 @@
 package main
 
 import (
-	"bufio"
-	"container/heap"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 
 	"github.com/hearts.zhang/fsremote"
@@ -36,35 +33,19 @@ var (
 	_fuzzy  = NewModel()
 )
 
+const (
+	hao_weather_api_key     = "b721bcdcf5ea4db78e1482fd2668a97c"
+	hao_ip_location_api_key = "06ac888daa9e4c7b8add72845393c543"
+	hao_ip_api_key          = "da3d89162b6f4bee94b11fa03e701522"
+	hao_movie_api_key       = "27e7428ff5654317baf909d803927bb6"
+	hao_video_api_key       = "9f374b640fb54a869c0a10a17d0a0103"
+	hao_financial_api_key   = "d965c03cdd344b97b5df05786ef55279"
+	hao_stock_api_key       = "f504cf57ca8248289ffa7aafd3e318b9"
+	hao_tv_api_key          = "007b155e09b54447a8dc4c105c07057f"
+)
+
 func init() {
 	_fuzzy.SetDepth(edit_distance)
-}
-func load_medias() {
-	file, err := os.Open(*medias_file)
-	panic_error(err)
-	defer file.Close()
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		to_fun_media(line)
-	}
-}
-func to_fun_media(line string) {
-	var m fsremote.FunMedia
-	panic_error(json.Unmarshal([]byte(line), &m))
-	_medias[m.MediaId] = &m
-	fill_rune2medias(&m)
-}
-func fill_rune2medias(m *fsremote.FunMedia) {
-	_fuzzy.SetCount(m.Name, 1, strconv.Itoa(m.MediaId), true)
-}
-
-type FaceSuggest struct {
-	Phrase  string            `json:"phrase"`
-	Score   int               `json:"score"`
-	Snippet string            `json:"snippet,omitempty"`
-	Dup     int               `json:"dup"`
-	Media   fsremote.FunMedia `json:"media,omitempty"`
 }
 
 func main_test() {
@@ -82,6 +63,9 @@ func main() {
 	load_medias()
 	log.Println("start server")
 	http.Handle("/face", handler(handle_face)) // ?lat=xxx&lng=xxx
+	http.Handle("/hao/weather/ip", handler(handle_weather_ip))
+	http.Handle("/hao/weather/city", handler(handle_weather_city))
+	http.Handle("/hao/stock/hs", handler(handle_stock_hs))
 	http.ListenAndServe(*addr, nil)
 }
 
@@ -96,118 +80,32 @@ func handle_face(w http.ResponseWriter, r *http.Request) {
 	panic_error(json.NewEncoder(w).Encode(x))
 }
 
-func face_uniq(dup []FaceSuggest, accu bool) (v []FaceSuggest) {
-	x := make(map[string]*FaceSuggest)
-	for _, suggest := range dup {
-		if v, ok := x[suggest.Snippet]; ok {
-
-			if accu {
-				v.Score = v.Score + suggest.Score
-				v.Dup++
-			} else if v.Score < suggest.Score {
-				var tmp = suggest
-				x[suggest.Snippet] = &tmp
-			}
-		} else {
-			var tmp = suggest
-			x[suggest.Snippet] = &tmp
-		}
-
-	}
-	var h = &FaceSuggestSlice{}
-	heap.Init(h)
-	for _, val := range x {
-		heap.Push(h, *val)
-	}
-	for h.Len() > 0 && len(v) < limit {
-		v = append(v, heap.Pop(h).(FaceSuggest))
-	}
-	return
-}
-
-type FaceSuggestSlice []FaceSuggest
-
-func (slice FaceSuggestSlice) Len() int {
-	return len(slice)
-}
-
-func (s FaceSuggestSlice) Less(i, j int) bool {
-	if s[i].Dup > s[j].Dup {
-		return true
-	} else if s[i].Dup == s[j].Dup {
-		return s[i].Score > s[j].Score
-	} else {
-		return false
-	}
-}
-
-func (slice FaceSuggestSlice) Swap(i, j int) {
-	slice[i], slice[j] = slice[j], slice[i]
-}
-
-func (h *FaceSuggestSlice) Push(x interface{}) {
-	*h = append(*h, x.(FaceSuggest))
-}
-func (h *FaceSuggestSlice) Pop() interface{} {
-	old := *h
-	n := len(old)
-	x := old[n-1]
-	*h = old[0 : n-1]
-	return x
-}
-
-//uniq and sort
-func face_trim(dup []FaceSuggest, accu bool) []FaceSuggest {
-	v := face_uniq(dup, accu)
-
-	fill_media(v)
-	return v
-}
-
-func fill_media(medias []FaceSuggest) {
-	for i := 0; i < len(medias); i++ {
-		medias[i].Media = *_medias[media_id(medias[i])]
-	}
-}
-
-func media_id(fs FaceSuggest) int {
-	v, _ := strconv.Atoi(fs.Snippet)
-	return v
-}
-
-func face_suggest(q string) []FaceSuggest {
-	log.Println("search", q)
-	params := url.Values{}
-	params.Add("q", q)
-	uri := "http://" + (*face) + "/face/suggest/?" + params.Encode()
-	resp, err := http.Get(uri)
+//http://apis.haoservice.com/weather/ip?ip=202.108.250.241&key=b721bcdcf5ea4db78e1482fd2668a97c
+func handle_weather_ip(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	panic_error(err)
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		panic_error(errors.New("status not ok"))
-	}
-
-	v := []FaceSuggest{}
-	err = json.NewDecoder(resp.Body).Decode(&v)
-	return v
+	uri := hao_weather_ip(host)
+	w.Header().Del("Content-Type")
+	w.Header().Set("Location", uri)
+	w.WriteHeader(http.StatusFound)
 }
-
-func atoi(sid string) int {
-	v, _ := strconv.Atoi(sid)
-	return v
+func handle_weather_city(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	city := r.FormValue("city")
+	uri := hao_weather_city(city)
+	w.Header().Del("Content-Type")
+	w.Header().Set("Location", uri)
+	w.WriteHeader(http.StatusFound)
 }
-
-func face_split_suggest(q string) []FaceSuggest {
-	var v []FaceSuggest
-	_, datas := _fuzzy.Suggestions(q, true)
-	for _, data := range datas {
-		m := _medias[atoi(data.Snippet)]
-		v = append(v, FaceSuggest{m.Name, int(m.Weight), strconv.Itoa(m.MediaId), 1, *m})
-	}
-
-	return v
+func handle_stock_hs(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	gid := r.FormValue("gid")
+	uri := hao_stock_hs(gid)
+	w.Header().Del("Content-Type")
+	w.Header().Set("Location", uri)
+	w.WriteHeader(http.StatusFound)
 }
-
 func (imp handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	defer func() {
@@ -218,8 +116,26 @@ func (imp handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	imp(w, r)
 }
 
+func hao_weather_ip(ip string) string {
+	return fmt.Sprintf("http://apis.haoservice.com/weather/ip?ip=%v&key=%v", ip, hao_weather_api_key)
+}
+
+//http://apis.haoservice.com/weather?cityname=北京&key=b721bcdcf5ea4db78e1482fd2668a97c
+//http://apis.haoservice.com/lifeservice/stock/hs?gid=sh601009&key=f504cf57ca8248289ffa7aafd3e318b9
+func hao_weather_city(cityname string) string {
+	cn := url.QueryEscape(cityname)
+	return fmt.Sprintf("http://apis.haoservice.com/weather?cityname=%v&key=%v", cn, hao_weather_api_key)
+}
+func hao_stock_hs(gid string) string {
+	return fmt.Sprintf("http://apis.haoservice.com/lifeservice/stock/hs?gid=%v&key=%v", gid, hao_stock_api_key)
+}
 func panic_error(err error) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func atoi(sid string) int {
+	v, _ := strconv.Atoi(sid)
+	return v
 }
