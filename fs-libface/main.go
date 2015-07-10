@@ -42,8 +42,9 @@ func panic_error(err error) {
 func to_media_doc(line string) {
 	var m fsremote.FunMedia
 	panic_error(json.Unmarshal([]byte(line), &m))
-	append_phrase(tags(m.Name), int(m.Weight*100), m.MediaId)
-	append_phrase(m.Tags, int(m.Weight*10), m.MediaId)
+	append_phrase(tags(m.Name), int(m.Weight*2), m.MediaId)
+
+	append_phrase(m.Tags, int(m.Weight/5), m.MediaId)
 }
 func append_phrase(tags []string, weight, mediaid int) {
 	for _, tag := range tags {

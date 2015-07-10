@@ -2,11 +2,13 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/hearts.zhang/fsremote"
 )
 
 const fs_playnum = "select mediaid,playnum, daynum,seven_daysnum,weeknum,monthnum,modifydate from fs_media_playnum"
@@ -18,16 +20,24 @@ func main() {
 	rows, err := db.Query(fs_playnum)
 	panic_error(err)
 	for rows.Next() {
-		var id, playnum, daynum, seven_daysnum, weeknum, monthnum int64
+		to := fsremote.FunTomato{}
+		//		var id, playnum, daynum, seven_daysnum, weeknum, monthnum int64
 		var modifydate []byte
-		if err = rows.Scan(&id, &playnum, &daynum, &seven_daysnum, &weeknum, &monthnum, &modifydate); err == nil {
-			fmt.Println(time_parse(string(modifydate)))
+		if err = rows.Scan(&to.MediaId, &to.PlayNum, &to.DayNum, &to.Day7Num, &to.WeekNum, &to.MonthNum, &modifydate); err == nil {
+			to.Date = time_parse(string(modifydate)).Unix()
+			print_tomato(to)
 		} else {
 			fmt.Fprintln(os.Stderr, err)
 		}
 	}
 }
 
+func print_tomato(to fsremote.FunTomato) {
+	if d, err := json.Marshal(to); err == nil {
+		fmt.Println(string(d))
+	}
+
+}
 func panic_error(err error) {
 	if err != nil {
 		panic(err)
