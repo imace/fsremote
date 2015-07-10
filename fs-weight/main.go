@@ -163,11 +163,13 @@ func face_trim(dup []FaceSuggest, accu bool) []FaceSuggest {
 	fill_media(v)
 	return v
 }
+
 func fill_media(medias []FaceSuggest) {
 	for i := 0; i < len(medias); i++ {
 		medias[i].Media = *_medias[media_id(medias[i])]
 	}
 }
+
 func media_id(fs FaceSuggest) int {
 	v, _ := strconv.Atoi(fs.Snippet)
 	return v
