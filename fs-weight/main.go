@@ -93,6 +93,7 @@ func handle_weather_ip(w http.ResponseWriter, r *http.Request) {
 func handle_weather_city(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	city := r.FormValue("city")
+	log.Println(r.RemoteAddr, city)
 	uri := hao_weather_city(city)
 	w.Header().Del("Content-Type")
 	w.Header().Set("Location", uri)
