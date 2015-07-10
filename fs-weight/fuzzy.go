@@ -12,6 +12,14 @@ type Pair struct {
 	str2 string
 }
 
+type TermData struct {
+	Score   int
+	Snippet string
+}
+type ModelData struct {
+	Score   int
+	Snppets []TermData
+}
 type Potential struct {
 	Term   string
 	Score  int
@@ -20,34 +28,15 @@ type Potential struct {
 }
 
 type Model struct {
-	Data            map[string][]int    `json:"data"`
-	Maxcount        int                 `json:"maxcount"`
-	Suggest         map[string][]string `json:"suggest"`
-	Depth           int                 `json:"depth"`
-	Threshold       int                 `json:"threshold"`
-	SuffDivergence  int                 `json:"-"`
-	SuffixArr       *suffixarray.Index  `json:"-"`
-	SuffixArrConcat string              `json:"-"`
+	Data            map[string]*ModelData `json:"data"`
+	Maxcount        int                   `json:"maxcount"`
+	Suggest         map[string][]string   `json:"suggest"`
+	Depth           int                   `json:"depth"`
+	Threshold       int                   `json:"threshold"`
+	SuffDivergence  int                   `json:"-"`
+	SuffixArr       *suffixarray.Index    `json:"-"`
+	SuffixArrConcat string                `json:"-"`
 	sync.RWMutex
-}
-
-// For sorting autocomplete suggestions
-// to bias the most popular first
-type Autos struct {
-	Results []string
-	Model   *Model
-}
-
-func (a Autos) Len() int      { return len(a.Results) }
-func (a Autos) Swap(i, j int) { a.Results[i], a.Results[j] = a.Results[j], a.Results[i] }
-
-func (a Autos) Less(i, j int) bool {
-	icount := a.Model.Data[a.Results[i]]
-	jcount := a.Model.Data[a.Results[j]]
-	if len(icount) == len(jcount) {
-		return a.Results[i] > a.Results[j]
-	}
-	return len(icount) > len(jcount)
 }
 
 // Create and initialise a new model
@@ -57,9 +46,9 @@ func NewModel() *Model {
 }
 
 func (model *Model) Init() *Model {
-	model.Data = make(map[string][]int)
+	model.Data = make(map[string]*ModelData)
 	model.Suggest = make(map[string][]string)
-	model.Depth = 2
+	model.Depth = 1
 	model.Threshold = 3 // Setting this to 1 is most accurate, but "1" is 5x more memory and 30x slower processing than "4". This is a big performance tuning knob
 	return model
 }
@@ -118,9 +107,16 @@ func LevenshteinR(a, b []rune) int {
 // creation of suggestion keys for the term. This function lets
 // you build a model from an existing dictionary with word popularity
 // counts without needing to run "TrainWord" repeatedly
-func (model *Model) SetCount(term string, count int, suggest bool) {
+func (model *Model) SetCount(term string, score int, snippet string, suggest bool) {
 	model.Lock()
-	model.Data[term] = append(model.Data[term], count)
+	var md *ModelData
+	var ok bool
+	if md, ok = model.Data[term]; !ok {
+		md = &ModelData{}
+		model.Data[term] = md
+	}
+	md.Snppets = append(md.Snppets, TermData{score, snippet})
+	md.Score = md.Score + score
 	if suggest {
 		model.createSuggestKeys(term)
 	}
@@ -186,8 +182,8 @@ func Edits1(word string) []string {
 }
 
 func (model *Model) score(input string) int {
-	if score, ok := model.Data[input]; ok {
-		return len(score)
+	if data, ok := model.Data[input]; ok {
+		return data.Score
 	}
 	return 0
 }
@@ -327,15 +323,15 @@ func (model *Model) Potentials(input string, exhaustive bool) map[string]*Potent
 }
 
 // For a given input string, suggests potential replacements
-func (model *Model) Suggestions(input string, exhaustive bool) ([]string, [][]int) {
+func (model *Model) Suggestions(input string, exhaustive bool) ([]string, []TermData) {
 	model.RLock()
 	suggestions := model.suggestPotential(input, exhaustive)
 	model.RUnlock()
 	output := make([]string, 0, 10)
-	data := make([][]int, 0, 10)
+	data := make([]TermData, 0, 10)
 	for _, suggestion := range suggestions {
 		output = append(output, suggestion.Term)
-		data = append(data, model.Data[suggestion.Term])
+		data = append(data, model.Data[suggestion.Term].Snppets...)
 	}
 	return output, data
 }

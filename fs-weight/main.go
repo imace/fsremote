@@ -38,7 +38,6 @@ var (
 
 func init() {
 	_fuzzy.SetDepth(edit_distance)
-	//	_fuzzy.SetThreshold(1)
 }
 func load_medias() {
 	file, err := os.Open(*medias_file)
@@ -57,15 +56,15 @@ func to_fun_media(line string) {
 	fill_rune2medias(&m)
 }
 func fill_rune2medias(m *fsremote.FunMedia) {
-	_fuzzy.SetCount(m.Name, m.MediaId, true)
+	_fuzzy.SetCount(m.Name, 1, strconv.Itoa(m.MediaId), true)
 }
 
 type FaceSuggest struct {
 	Phrase  string            `json:"phrase"`
 	Score   int               `json:"score"`
 	Snippet string            `json:"snippet,omitempty"`
-	Media   fsremote.FunMedia `json:"media,omitempty"`
 	Dup     int               `json:"dup"`
+	Media   fsremote.FunMedia `json:"media,omitempty"`
 }
 
 func main_test() {
@@ -191,16 +190,22 @@ func face_suggest(q string) []FaceSuggest {
 	return v
 }
 
+func atoi(sid string) int {
+	v, _ := strconv.Atoi(sid)
+	return v
+}
+
 func face_split_suggest(q string) []FaceSuggest {
 	var v []FaceSuggest
 	_, datas := _fuzzy.Suggestions(q, true)
 	for _, data := range datas {
-		m := _medias[data[0]]
-		v = append(v, FaceSuggest{m.Name, int(m.Weight), strconv.Itoa(m.MediaId), *m, 1})
+		m := _medias[atoi(data.Snippet)]
+		v = append(v, FaceSuggest{m.Name, int(m.Weight), strconv.Itoa(m.MediaId), 1, *m})
 	}
 
 	return v
 }
+
 func (imp handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	defer func() {
@@ -210,6 +215,7 @@ func (imp handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 	imp(w, r)
 }
+
 func panic_error(err error) {
 	if err != nil {
 		panic(err)
