@@ -75,7 +75,20 @@ type EsMedias struct {
 
 const _2020 = 1577836800
 
-func MediaScore(d, w, s7, m, t int, date int64) float64 {
+func MediaScore(d, w, s14, m, t int, date int64, typ string) (w1, w2 float64) {
+	typw := 1.0
+	switch typ {
+	case "tv":
+		typw = 1.0
+	case "movie":
+		typw = 1.1
+	case "cartoon":
+		typw = 0.9
+	case "variety":
+		typw = 0.8
+	case "vfilm":
+		typw = 0.7
+	}
 	r, l, dt := time.Unix(0, 0), time.Unix(_2020, 0), time.Unix(int64(date), 0)
 	rg := math.Log(l.Sub(r).Hours() / 24)
 	dr := dt.Sub(r).Hours() / 24
@@ -92,8 +105,18 @@ func MediaScore(d, w, s7, m, t int, date int64) float64 {
 	if days < 1.0 {
 		days = 1.0
 	}
-	x := float64(t)/days + float64(d) + float64(s7)/7.0 + float64(w)/5.0 + float64(m)/30.0
-	return x * weight
+	tw := unit_score(t, 2, 1, 742287)
+	mw := unit_score(m, 2, 3, 22605)
+	s14w := unit_score(s14, 3, 4, 10063)
+	ww := unit_score(w, 5, 6, 5580)
+	dw := unit_score(d, 6, 7, 715)
+	//台风 33.083 13.344 124 715 10063 5580 22605 742287 1450022400
+	x := tw + mw + s14w + ww + dw
+	x = math.Log(x)*typw + 1.0
+	return x * weight, x
+}
+func unit_score(v int, C, R float64, m int) float64 {
+	return float64(v)/float64(v+m)*R + float64(m)/float64(v+m)*C
 }
 func (m *IntString) MarshalJSON() ([]byte, error) {
 	return []byte(strconv.Itoa(int(*m))), nil

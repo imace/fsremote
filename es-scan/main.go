@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math"
 	"strconv"
 	"time"
 
@@ -54,19 +53,8 @@ func when_es_media(em fsremote.EsMedia) {
 	if delta < 1.0 {
 		delta = 1.0
 	}
-	lw := 1.0
-	if em.MediaLength > 0 && em.MediaLength < 5 {
-		lw = 0.3
-	}
-	if em.MediaLength >= 5 && em.MediaLength < 15 {
-		lw = 0.6
-	}
-	if em.MediaLength >= 15 && em.MediaLength < 30 {
-		lw = 0.8
-	}
-	score := fsremote.MediaScore(em.Day, em.Week, em.Seven, em.Month, em.Play, int64(rl))
-	em.Weight = score * (1 + lw)
-	em.Weight2 = math.Log(delta)
+
+	em.Weight, em.Weight2 = fsremote.MediaScore(em.Day, em.Week, em.Seven, em.Month, em.Play, int64(rl), em.DisplayType)
 	print_es_media(em)
 }
 func print_es_media(em fsremote.EsMedia) {
@@ -79,5 +67,5 @@ func panic_error(err error) {
 }
 func f2s(input_num float64) string {
 	// to convert a float number to a string
-	return strconv.FormatFloat(input_num, 'f', 6, 64)
+	return strconv.FormatFloat(input_num, 'f', 3, 64)
 }
