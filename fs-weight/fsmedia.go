@@ -6,14 +6,20 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/hearts.zhang/fsremote"
 )
 
+type FaceSuggests struct {
+	Suggests []FaceSuggest `json:"suggests,omitempty"`
+}
 type FaceSuggest struct {
 	Phrase  string            `json:"phrase"`
 	Score   int               `json:"score"`
@@ -104,11 +110,11 @@ func (h *FaceSuggestSlice) Pop() interface{} {
 }
 
 //uniq and sort
-func face_trim(dup []FaceSuggest, accu bool) []FaceSuggest {
+func face_trim(dup []FaceSuggest, accu bool) FaceSuggests {
 	v := face_uniq(dup, accu)
 
 	fill_media(v)
-	return v
+	return FaceSuggests{v}
 }
 
 func fill_media(medias []FaceSuggest) {
@@ -122,11 +128,29 @@ func media_id(fs FaceSuggest) int {
 	return v
 }
 
+func face_address() string {
+	return "http://" + (*face) + "/face/suggest/"
+}
+
+func face_suggest_wrap(q string) []FaceSuggest {
+	x := face_suggest(q)
+	log.Println("face return", len(x))
+
+	if len(x) < 5 {
+		x = append(x, face_split_suggest(q)...)
+		log.Println("fuzzy return", len(x))
+	}
+	if len(x) < 5 {
+		x = append(x, es_search(q)...)
+		log.Println("es return", len(x))
+	}
+	return x
+}
 func face_suggest(q string) []FaceSuggest {
 	log.Println("search", q)
 	params := url.Values{}
 	params.Add("q", q)
-	uri := "http://" + (*face) + "/face/suggest/?" + params.Encode()
+	uri := face_address() + "?" + params.Encode()
 	resp, err := http.Get(uri)
 	panic_error(err)
 	defer resp.Body.Close()
@@ -148,4 +172,56 @@ func face_split_suggest(q string) []FaceSuggest {
 	}
 
 	return v
+}
+
+func es_address() string {
+	return "http://" + (*es) + "/search.php"
+}
+
+func es_search(q string) (v []FaceSuggest) {
+	params := url.Values{}
+	params.Add("tags", q)
+	uri := es_address() + "?" + params.Encode()
+	log.Println(uri)
+	resp, err := http.Get(uri)
+	panic_error(err)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		panic_error(errors.New("status not ok"))
+	}
+
+	xv := fsremote.EsMedias{}
+	err = json.NewDecoder(resp.Body).Decode(&xv)
+	for _, m := range xv.Data {
+		item := fsremote.FunMedia{
+			m.MediaID, m.Name, m.Name, m.NameEn, m.NameOt, m.Lang, m.MediaLength, m.Country, 0, m.CoverPicID, strings.Fields(m.Tags), 0,
+		}
+
+		sc, _ := strconv.Atoi(m.Release)
+		v = append(v, FaceSuggest{"", score(m.Day, m.Week, m.Seven, m.Month, m.Play, sc), strconv.Itoa(m.MediaID), 0, item})
+	}
+	return
+}
+
+const _2020 = 1577836800
+
+func score(d, w, s7, m, t, date int) int {
+	r, l, dt := time.Unix(0, 0), time.Unix(_2020, 0), time.Unix(int64(date), 0)
+	rg := math.Log(l.Sub(r).Hours() / 24)
+	dr := dt.Sub(r).Hours() / 24
+	dl := l.Sub(dt).Hours() / 24
+	if dr < math.E {
+		dr = math.E
+	}
+	if dl < math.E {
+		dl = math.E
+	}
+	r1, l1 := math.Log(dr)/rg, math.Log(dl)/rg
+	weight := r1*1.0 + l1*2.0
+	days := time.Since(time.Unix(int64(date), 0)).Hours() / 24
+	if days < 1.0 {
+		days = 1.0
+	}
+	x := float64(t)/days + float64(d) + float64(s7)/7.0 + float64(w)/5.0 + float64(m)/30.0
+	return int(x * weight)
 }

@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -148,9 +149,10 @@ func eat_comma(data []byte, idx int) int {
 	}
 	return idx
 }
+
 func mysql_split(line string) (v []string) {
 	reader := strings.NewReader(line)
-	scaner := NewScanner(reader)
+	scaner := bufio.NewScanner(reader)
 	scaner.Split(mysql_spliter)
 	for scaner.Scan() {
 		v = append(v, scaner.Text())

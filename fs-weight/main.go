@@ -26,6 +26,7 @@ var (
 	addr        = flag.String("addr", ":9204", "listen address")
 	face        = flag.String("face", "testbox02.chinacloudapp.cn:9203", "libface address")
 	medias_file = flag.String("medias", "e:/medias.json", "media file")
+	es          = flag.String("es", "es.fun.tv", "es search host")
 )
 
 var (
@@ -54,7 +55,7 @@ func main_test() {
 
 	x := face_trim(face_split_suggest(*q), true)
 
-	for _, i := range x {
+	for _, i := range x.Suggests {
 		fmt.Println(i)
 	}
 }
@@ -62,10 +63,13 @@ func main() {
 	flag.Parse()
 	load_medias()
 	log.Println("start server")
-	http.Handle("/face", handler(handle_face)) // ?lat=xxx&lng=xxx
+	http.Handle("/face", handler(handle_face)) //
 	http.Handle("/hao/weather/ip", handler(handle_weather_ip))
 	http.Handle("/hao/weather/city", handler(handle_weather_city))
 	http.Handle("/hao/stock/hs", handler(handle_stock_hs))
+	http.Handle("/app/select", handler(handle_app_select))
+	http.Handle("/es/query", handler(handle_es_query)) //tags, q
+	http.Handle("/es/match", handler(handle_es_match))
 	http.ListenAndServe(*addr, nil)
 }
 
@@ -73,11 +77,25 @@ func main() {
 func handle_face(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	q := r.FormValue("q")
-	x := face_trim(face_suggest(q), false)
-	if len(x) == 0 {
-		x = face_trim(face_split_suggest(q), true)
-	}
+	x := face_trim(face_suggest_wrap(q), false)
+
 	panic_error(json.NewEncoder(w).Encode(x))
+}
+
+func handle_app_select(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+}
+
+func handle_es_query(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	q := r.FormValue("q")
+	x := face_trim(es_search(q), false)
+	panic_error(json.NewEncoder(w).Encode(x))
+}
+
+func handle_es_match(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+
 }
 
 //http://apis.haoservice.com/weather/ip?ip=202.108.250.241&key=b721bcdcf5ea4db78e1482fd2668a97c
