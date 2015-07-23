@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 
 	"github.com/hearts.zhang/fsremote"
 	"github.com/olivere/elastic"
@@ -60,13 +61,24 @@ func main() {
 	}
 }
 
+//	_, err = client.Index().Index(es_index).Type("equip").Id(strconv.Itoa(int(e.EquipId))).BodyJson(&e).Do()
 func when_es_media(client *elastic.Client, em fsremote.EsMedia) {
-	em.Score = em.Weight
+	em.Actors = em_split_string(em.Actor)
+	em.Roles = em_split_string(em.Role)
 	if _, err := client.Index().Index(tindice).Type(mtype).Id(strconv.Itoa(em.MediaID)).BodyJson(&em).Do(); err != nil {
 		log.Println(err)
 	} else {
 		fmt.Println(em.MediaID)
 	}
+}
+func em_split_string(x string) (v []string) {
+	fields := strings.Split(x, "/")
+	for _, f := range fields {
+		if x := strings.TrimSpace(f); x != "" {
+			v = append(v, strings.TrimSpace(f))
+		}
+	}
+	return
 }
 func print_es_media(em fsremote.EsMedia) {
 	fmt.Println(em.Name, f2s(em.Weight), f2s(em.Weight2), em.MediaLength, em.Day, em.Week, em.Seven, em.Month, em.Play, em.Release)
