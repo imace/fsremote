@@ -54,6 +54,7 @@ type EsMedia struct {
 	Name        string    `json:"name"`
 	NameEn      string    `json:"nameEn"`
 	NameOt      string    `json:"nameOt"`
+	NameNorm    []string  `json:"namen,omitempty"`
 	PinyinCn    string    `json:"pinyinCn"`
 	Play        int       `json:"play"`
 	Release     IntString `json:"release"`
@@ -62,8 +63,6 @@ type EsMedia struct {
 	Tags        string    `json:"tags"`
 	Week        int       `json:"week"`
 	Weight      float64   `json:"weight"`
-	Weight2     float64   `json:"weight2`
-	Score       float64   `json:"_score"`
 	Actors      []string  `json:"actors,omitempty"`
 	Roles       []string  `json:"roles,omitempty"`
 }
@@ -120,4 +119,16 @@ func (m *IntString) UnmarshalJSON(data []byte) error {
 	i, err := strconv.Atoi(t)
 	*m = IntString(i)
 	return err
+}
+
+type EsApp struct {
+	AppID     int    `json:"appId"`
+	DownCount int    `json:"downCount"`
+	Name      string `json:"name"`
+	Pinyin    string `json:"pinyin"`
+	PinyinCn  string `json:"pinyinCn"`
+	PkgName   string `json:"pkgName"`
+	Source    int    `json:"source"`
+	VerCode   int    `json:"verCode"`
+	VerName   string `json:"verName"`
 }
