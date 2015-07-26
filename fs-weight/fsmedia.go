@@ -14,18 +14,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hearts.zhang/fsremote"
+	"github.com/hearts.zhang/xiuxiu"
 )
 
 type FaceSuggests struct {
 	Suggests []FaceSuggest `json:"suggests,omitempty"`
 }
 type FaceSuggest struct {
-	Phrase  string            `json:"phrase"`
-	Score   int               `json:"score"`
-	Snippet string            `json:"snippet,omitempty"`
-	Dup     int               `json:"dup"`
-	Media   fsremote.FunMedia `json:"media,omitempty"`
+	Phrase  string          `json:"phrase"`
+	Score   int             `json:"score"`
+	Snippet string          `json:"snippet,omitempty"`
+	Dup     int             `json:"dup"`
+	Media   xiuxiu.FunMedia `json:"media,omitempty"`
 }
 
 func load_medias() {
@@ -39,13 +39,13 @@ func load_medias() {
 	}
 }
 func to_fun_media(line string) {
-	var m fsremote.FunMedia
+	var m xiuxiu.FunMedia
 	panic_error(json.Unmarshal([]byte(line), &m))
 	_medias[m.MediaId] = &m
 	fill_rune2medias(&m)
 }
 
-func fill_rune2medias(m *fsremote.FunMedia) {
+func fill_rune2medias(m *xiuxiu.FunMedia) {
 	_fuzzy.SetCount(m.Name, 1, strconv.Itoa(m.MediaId), true)
 }
 
@@ -190,14 +190,14 @@ func es_search(q string) (v []FaceSuggest) {
 		panic_error(errors.New("status not ok"))
 	}
 
-	xv := fsremote.EsMedias{}
+	xv := xiuxiu.EsMedias{}
 	err = json.NewDecoder(resp.Body).Decode(&xv)
 	for _, m := range xv.Data {
-		item := fsremote.FunMedia{
-			m.MediaID, m.Name, m.Name, m.NameEn, m.NameOt, m.Lang, m.MediaLength, m.Country, 0, m.CoverPicID, strings.Fields(m.Tags), 0,
+		item := xiuxiu.FunMedia{
+			m.MediaID, m.Name, m.Name, m.NameEn, m.NameOt, m.Lang, int(m.MediaLength), m.Country, 0, m.CoverPicID, strings.Fields(m.Tags), 0,
 		}
 
-		sc, _ := strconv.Atoi(m.Release)
+		sc := int(m.Release)
 		v = append(v, FaceSuggest{"", score(m.Day, m.Week, m.Seven, m.Month, m.Play, sc), strconv.Itoa(m.MediaID), 0, item})
 	}
 	return

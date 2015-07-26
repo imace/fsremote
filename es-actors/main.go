@@ -11,17 +11,13 @@ import (
 	"github.com/olivere/elastic"
 )
 
-var (
-	debug bool
-)
-
 func init() {
-	flag.BoolVar(&debug, "debug", true, "diagnose mode")
+
 }
 
 func main() {
 	flag.Parse()
-	client, err := elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(xiuxiu.ESAddr))
+	client, err := elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(xiuxiu.EsAddr))
 	panic_error(err)
 
 	err = xiuxiu.EsCreateIfNotExist(client, xiuxiu.EsIndice)
@@ -35,7 +31,7 @@ func when_es_media(client *elastic.Client, em xiuxiu.EsMedia) {
 	em.Actors = xiuxiu.EmCleanName(em.Actor)
 	em.Roles = xiuxiu.EmCleanName(em.Role)
 
-	if debug {
+	if xiuxiu.EsDebug {
 		if len(em.Actors) > 0 {
 			fmt.Println(em.Actors, em.Actor)
 		}

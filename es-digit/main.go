@@ -11,17 +11,11 @@ import (
 	"github.com/olivere/elastic"
 )
 
-var debug bool
-
-func init() {
-	flag.BoolVar(&debug, "debug", true, "diagnose mode")
-}
-
 var _media xiuxiu.EsMedia
 
 func main() {
 	flag.Parse()
-	client, err := elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(xiuxiu.ESAddr))
+	client, err := elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(xiuxiu.EsAddr))
 	panic_error(err)
 
 	xiuxiu.EsMediaScan(client, xiuxiu.EsIndice, xiuxiu.EsType, func(em xiuxiu.EsMedia) {
@@ -75,7 +69,7 @@ func when_es_media(client *elastic.Client, em xiuxiu.EsMedia) {
 	}
 	names = append(names, em.NameNorm...)
 	names = xiuxiu.EsUniqSlice(names)
-	if debug == true {
+	if xiuxiu.EsDebug {
 		if len(names) != len(em.NameNorm) {
 			fmt.Println(names)
 		}

@@ -1,60 +1,28 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 	"unicode"
 
-	"github.com/hearts.zhang/fsremote"
+	"github.com/hearts.zhang/xiuxiu"
 	"github.com/olivere/elastic"
 )
 
 var (
-	es      string
-	tindice string
-)
-
-const (
-	indice = "fsmedia2"
-	mtype  = "media"
-)
-
-func init() {
-	flag.StringVar(&es, "es", "http://[fe80::fabc:12ff:fea2:64a6]:9200", "or http://testbox02.chinacloudapp.cn:9200")
-	flag.StringVar(&tindice, "indice", "fsmedia2", "target indice")
-}
-
-var (
-	media fsremote.EsMedia
+	media xiuxiu.EsMedia
 )
 
 func main() {
 	flag.Parse()
-	client, err := elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(es))
+	client, err := elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(xiuxiu.EsAddr))
 	panic_error(err)
 
-	cursor, err := client.Scan(indice).Type(mtype).Size(100).Do()
-	panic_error(err)
-
-	for {
-		result, err := cursor.Next()
-		if err == elastic.EOS {
-			break
-		}
-		panic_error(err)
-		for _, hit := range result.Hits.Hits {
-			var em fsremote.EsMedia
-			if err := json.Unmarshal(*hit.Source, &em); err != nil {
-				log.Println(err)
-			} else {
-				when_es_media(client, em)
-			}
-		}
-	}
+	xiuxiu.EsMediaScan(client, xiuxiu.EsIndice, xiuxiu.EsType, func(em xiuxiu.EsMedia) {
+		when_es_media(client, em)
+	})
 
 }
 
@@ -68,15 +36,9 @@ func uniq_string(a []string) (v []string) {
 	}
 	return v
 }
-func when_es_media(client *elastic.Client, em fsremote.EsMedia) {
+func when_es_media(client *elastic.Client, em xiuxiu.EsMedia) {
 	media = em
 	var v = strings.Fields(em.Tags)
-	for _, name := range em.NameNorm {
-		v = append(v, norm_word(name)...)
-	}
-	v = append(v, norm_word(em.Director)...)
-	v = append(v, norm_word(em.Actor)...)
-	v = append(v, norm_word(em.Role)...)
 
 	v = uniq_string(v)
 	append_phrase(v, int(em.Weight*10000), em.MediaID)

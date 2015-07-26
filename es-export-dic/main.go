@@ -14,38 +14,15 @@ import (
 )
 
 var (
-	es      string
-	tindice string
-)
-
-const (
-	indice = "fsmedia2"
-	mtype  = "media"
-)
-
-func init() {
-	flag.StringVar(&es, "es", "http://[fe80::fabc:12ff:fea2:64a6]:9200", "or http://testbox02.chinacloudapp.cn:9200")
-	flag.StringVar(&tindice, "indice", "fsmedia2", "target indice")
-}
-func prepare_es_index(client *elastic.Client) (err error) {
-	var b bool
-	if b, err = client.IndexExists(tindice).Do(); b == false && err == nil {
-		err = create_index(client, tindice)
-	}
-
-	return
-}
-
-var (
 	media fsremote.EsMedia
 )
 
 func main() {
 	flag.Parse()
-	client, err := elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(es))
+	client, err := elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(xiuxiu.EsAddr))
 	panic_error(err)
 
-	cursor, err := client.Scan(indice).Type(mtype).Size(100).Do()
+	cursor, err := client.Scan(xiuxiu.EsIndice).Type(xiuxiu.EsType).Size(100).Do()
 	panic_error(err)
 
 	for {

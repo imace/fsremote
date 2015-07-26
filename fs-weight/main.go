@@ -11,7 +11,7 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/hearts.zhang/fsremote"
+	"github.com/hearts.zhang/xiuxiu"
 )
 
 const (
@@ -30,7 +30,7 @@ var (
 )
 
 var (
-	_medias = make(map[int]*fsremote.FunMedia)
+	_medias = make(map[int]*xiuxiu.FunMedia)
 	_fuzzy  = NewModel()
 )
 
@@ -64,9 +64,7 @@ func main() {
 	load_medias()
 	log.Println("start server")
 	http.Handle("/face", handler(handle_face)) //
-	http.Handle("/hao/weather/ip", handler(handle_weather_ip))
-	http.Handle("/hao/weather/city", handler(handle_weather_city))
-	http.Handle("/hao/stock/hs", handler(handle_stock_hs))
+
 	http.Handle("/app/select", handler(handle_app_select))
 	http.Handle("/es/query", handler(handle_es_query)) //tags, q
 	http.Handle("/es/match", handler(handle_es_match))

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/hearts.zhang/fsremote"
+	"github.com/hearts.zhang/xiuxiu"
 )
 
 var input = flag.String("input", "e:/medias.json", "media json file")
@@ -33,7 +33,7 @@ func panic_error(err error) {
 }
 
 func to_media_doc(line string) {
-	var m fsremote.FunMedia
+	var m xiuxiu.FunMedia
 	panic_error(json.Unmarshal([]byte(line), &m))
 	var doc []string
 	doc = append(doc, tags(m.Name)...)
