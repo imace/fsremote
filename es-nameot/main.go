@@ -1,100 +1,50 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"strconv"
-	"strings"
 
-	"github.com/hearts.zhang/fsremote"
+	"github.com/hearts.zhang/xiuxiu"
 	"github.com/olivere/elastic"
 )
 
-var (
-	es      string
-	tindice string
-)
-
-const (
-	indice = "fsmedia2"
-	mtype  = "media"
-)
+var debug bool
 
 func init() {
-	flag.StringVar(&es, "es", "http://es.fun.tv:9200", "or http://testbox02.chinacloudapp.cn:9200")
-	flag.StringVar(&tindice, "indice", "fsmedia2", "target indice")
+	flag.BoolVar(&debug, "debug", true, "diagnose mode")
 }
-func prepare_es_index(client *elastic.Client) (err error) {
-	var b bool
-	if b, err = client.IndexExists(tindice).Do(); b == false && err == nil {
-		err = create_index(client, tindice)
-	}
 
-	return
-}
 func main() {
 	flag.Parse()
-	client, err := elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(es))
+	client, err := elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(xiuxiu.ESAddr))
 	panic_error(err)
 
-	err = prepare_es_index(client)
-	panic_error(err)
-
-	cursor, err := client.Scan(indice).Type(mtype).Size(20).Do()
-	panic_error(err)
-	for {
-		result, err := cursor.Next()
-		if err == elastic.EOS {
-			break
-		}
-		panic_error(err)
-		for _, hit := range result.Hits.Hits {
-			var em fsremote.EsMedia
-			if err := json.Unmarshal(*hit.Source, &em); err != nil {
-				log.Println(err)
-			}
-
-			when_es_media(client, em)
-		}
-	}
+	xiuxiu.EsMediaScan(client, xiuxiu.EsIndice, xiuxiu.EsType, func(em xiuxiu.EsMedia) {
+		when_es_media(client, em)
+	})
 }
 
-func when_es_media(client *elastic.Client, em fsremote.EsMedia) {
-	em.Actors = em_split_string(em.Actor)
-	em.Roles = em_split_string(em.Role)
-	if _, err := client.Index().Index(tindice).Type(mtype).Id(strconv.Itoa(em.MediaID)).BodyJson(&em).Do(); err != nil {
+func when_es_media(client *elastic.Client, em xiuxiu.EsMedia) {
+	names := xiuxiu.EmCleanName(em.Name)
+	names = append(names, xiuxiu.EmCleanName(em.NameEn)...)
+	names = append(names, xiuxiu.EmCleanName(em.NameOt)...)
+	names = xiuxiu.EsUniqSlice(names)
+	if debug == true {
+		fmt.Println(names, em.Name, em.NameEn, em.NameOt)
+		return
+	}
+	em.NameNorm = names
+	if _, err := client.Index().Index(xiuxiu.EsIndice).Type(xiuxiu.EsType).Id(strconv.Itoa(em.MediaID)).BodyJson(&em).Do(); err != nil {
 		log.Println(err)
 	} else {
 		fmt.Println(em.MediaID)
 	}
 }
-func em_split_string(x string) (v []string) {
-	fields := strings.Split(x, "/")
-	for _, f := range fields {
-		v = append(v, strings.TrimSpace(f))
-	}
-	return
-}
-func print_es_media(em fsremote.EsMedia) {
-	fmt.Println(em.Name, f2s(em.Weight), f2s(em.Weight2), em.MediaLength, em.Day, em.Week, em.Seven, em.Month, em.Play, em.Release)
-}
+
 func panic_error(err error) {
 	if err != nil {
 		panic(err)
 	}
-}
-func f2s(input_num float64) string {
-	// to convert a float number to a string
-	return strconv.FormatFloat(input_num, 'f', 3, 64)
-}
-func drop_index(client *elastic.Client, index string) error {
-	_, err := client.DeleteIndex(index).Do()
-	return err
-}
-
-func create_index(client *elastic.Client, index string) error {
-	_, err := client.CreateIndex(index).Do()
-	return err
 }

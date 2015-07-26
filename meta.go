@@ -1,4 +1,4 @@
-package fsremote
+package xiuxiu
 
 import "strconv"
 
@@ -44,6 +44,7 @@ type EsMedia struct {
 	CoverPicID  int       `json:"coverPicId"`
 	Day         int       `json:"day"`
 	Director    string    `json:"director"`
+	Directors   []string  `json:"directoren,omitempty"`
 	DisplayType string    `json:"displayType"`
 	FirstCharCn string    `json:"firstCharCn"`
 	Image       string    `json:"image"`
@@ -61,6 +62,7 @@ type EsMedia struct {
 	Role        string    `json:"role"`
 	Seven       int       `json:"seven"`
 	Tags        string    `json:"tags"`
+	Tags2       string    `json:"tags2,omitempty"`
 	Week        int       `json:"week"`
 	Weight      float64   `json:"weight"`
 	Actors      []string  `json:"actors,omitempty"`

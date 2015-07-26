@@ -1,67 +1,34 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"strconv"
 	"strings"
 
-	"github.com/hearts.zhang/fsremote"
+	"github.com/hearts.zhang/xiuxiu"
 	"github.com/olivere/elastic"
 )
 
 var (
-	es      string
-	tindice string
-)
-
-const (
-	indice = "fsmedia2"
-	mtype  = "media"
+	debug bool
 )
 
 func init() {
-	flag.StringVar(&es, "es", "http://[fe80::fabc:12ff:fea2:64a6]:9200", "or http://testbox02.chinacloudapp.cn:9200")
-	flag.StringVar(&tindice, "indice", "fsmedia2", "target indice")
-}
-func prepare_es_index(client *elastic.Client) (err error) {
-	var b bool
-	if b, err = client.IndexExists(tindice).Do(); b == false && err == nil {
-		err = create_index(client, tindice)
-	}
-
-	return
+	flag.BoolVar(&debug, "debug", true, "diagnose mode")
 }
 
-var _media fsremote.EsMedia
+var _media xiuxiu.EsMedia
 
 func main() {
 	flag.Parse()
-	client, err := elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(es))
+	client, err := elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(xiuxiu.ESAddr))
 	panic_error(err)
 
-	err = prepare_es_index(client)
-	panic_error(err)
-
-	cursor, err := client.Scan(indice).Type(mtype).Size(20).Do()
-	panic_error(err)
-	for {
-		result, err := cursor.Next()
-		if err == elastic.EOS {
-			break
-		}
-		panic_error(err)
-		for _, hit := range result.Hits.Hits {
-			var em fsremote.EsMedia
-			if err := json.Unmarshal(*hit.Source, &em); err != nil {
-				log.Println(err)
-			}
-
-			when_es_media(client, em)
-		}
-	}
+	xiuxiu.EsMediaScan(client, xiuxiu.EsIndice, xiuxiu.EsType, func(em xiuxiu.EsMedia) {
+		when_es_media(client, em)
+	})
 }
 
 func uniq_string(a []string) (v []string) {
@@ -160,7 +127,7 @@ func type2tag(typ string) (tags []string) {
 }
 
 func location2tag(loc string) (tags []string) {
-	tags = em_split_string(loc)
+	tags = xiuxiu.EsStringSplit(loc)
 	if strings.Contains(loc, "中国") {
 		tags = append(tags, "国产")
 		tags = append(tags, "国内")
@@ -183,50 +150,40 @@ func location2tag(loc string) (tags []string) {
 
 	return
 }
+func remove_char(tags []string) (v []string) {
+	for _, tag := range tags {
+		rt := []rune(tag)
+		if len(rt) > 1 {
+			v = append(v, tag)
+		}
+	}
+	return
+}
 
 //	_, err = client.Index().Index(es_index).Type("equip").Id(strconv.Itoa(int(e.EquipId))).BodyJson(&e).Do()
-func when_es_media(client *elastic.Client, em fsremote.EsMedia) {
+func when_es_media(client *elastic.Client, em xiuxiu.EsMedia) {
 	_media = em
 	tags := strings.Fields(em.Tags)
 	tags = remove_china_hk(tags, em.Country)
 	tags = append(tags, type2tag(em.DisplayType)...)
 	tags = append(tags, location2tag(em.Country)...)
 	tags = append(tags, loctyp2tag(em.Country, em.DisplayType)...)
+	tags = remove_char(tags)
 	tags = uniq_string(tags)
-	em.Tags = strings.Join(tags, " ")
-	if _, err := client.Index().Index(tindice).Type(mtype).Id(strconv.Itoa(em.MediaID)).BodyJson(&em).Do(); err != nil {
+	if debug == true {
+		fmt.Println(tags)
+		return
+	}
+	//	em.Tags = strings.Join(tags, " ")
+	if _, err := client.Index().Index(xiuxiu.EsIndice).Type(xiuxiu.EsType).Id(strconv.Itoa(em.MediaID)).BodyJson(&em).Do(); err != nil {
 		log.Println(err)
 	} else {
 		fmt.Println(em.MediaID)
 	}
 }
-func em_split_string(x string) (v []string) {
-	fields := strings.Split(x, "/")
-	for _, f := range fields {
-		if x := strings.TrimSpace(f); x != "" {
-			v = append(v, strings.TrimSpace(f))
-		}
-	}
-	return
-}
-func print_es_media(em fsremote.EsMedia) {
-	fmt.Println(em.Name, f2s(em.Weight), em.MediaLength, em.Day, em.Week, em.Seven, em.Month, em.Play, em.Release)
-}
+
 func panic_error(err error) {
 	if err != nil {
 		panic(err)
 	}
-}
-func f2s(input_num float64) string {
-	// to convert a float number to a string
-	return strconv.FormatFloat(input_num, 'f', 3, 64)
-}
-func drop_index(client *elastic.Client, index string) error {
-	_, err := client.DeleteIndex(index).Do()
-	return err
-}
-
-func create_index(client *elastic.Client, index string) error {
-	_, err := client.CreateIndex(index).Do()
-	return err
 }

@@ -1,6 +1,5 @@
 package main
 
-//depends nil
 import (
 	"flag"
 	"fmt"
@@ -11,9 +10,7 @@ import (
 	"github.com/olivere/elastic"
 )
 
-var (
-	debug bool
-)
+var debug bool
 
 func init() {
 	flag.BoolVar(&debug, "debug", true, "diagnose mode")
@@ -24,33 +21,23 @@ func main() {
 	client, err := elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(xiuxiu.ESAddr))
 	panic_error(err)
 
-	err = xiuxiu.EsCreateIfNotExist(client, xiuxiu.EsIndice)
-	panic_error(err)
 	xiuxiu.EsMediaScan(client, xiuxiu.EsIndice, xiuxiu.EsType, func(em xiuxiu.EsMedia) {
 		when_es_media(client, em)
 	})
 }
-
 func when_es_media(client *elastic.Client, em xiuxiu.EsMedia) {
-	em.Actors = xiuxiu.EmCleanName(em.Actor)
-	em.Roles = xiuxiu.EmCleanName(em.Role)
-
-	if debug {
-		if len(em.Actors) > 0 {
-			fmt.Println(em.Actors, em.Actor)
-		}
-		if len(em.Roles) > 0 {
-			fmt.Println(em.Roles, em.Role)
-		}
+	directors := xiuxiu.EmCleanDirector(em.Director)
+	if debug == true {
+		fmt.Println(directors, em.Director)
 		return
 	}
+	em.Directors = directors
 	if _, err := client.Index().Index(xiuxiu.EsIndice).Type(xiuxiu.EsType).Id(strconv.Itoa(em.MediaID)).BodyJson(&em).Do(); err != nil {
 		log.Println(err)
 	} else {
 		fmt.Println(em.MediaID)
 	}
 }
-
 func panic_error(err error) {
 	if err != nil {
 		panic(err)
