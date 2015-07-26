@@ -43,7 +43,28 @@ func EsMediaScan(client *elastic.Client, indice, mtype string, handler func(EsMe
 	}
 	return nil
 }
-
+func EsAppScan(client *elastic.Client, indice, mtype string, handler func(EsApp)) error {
+	cursor, err := client.Scan(indice).Type(mtype).Size(100).Do()
+	if err != nil {
+		return err
+	}
+	for {
+		result, err := cursor.Next()
+		if err == elastic.EOS {
+			break
+		}
+		panic_error(err)
+		for _, hit := range result.Hits.Hits {
+			var em EsApp
+			if err := json.Unmarshal(*hit.Source, &em); err != nil {
+				log.Println(err)
+			} else {
+				handler(em)
+			}
+		}
+	}
+	return nil
+}
 func panic_error(err error) {
 	if err != nil {
 		panic(err)
