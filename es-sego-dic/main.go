@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/hearts.zhang/xiuxiu"
 	"github.com/olivere/elastic"
@@ -18,16 +19,53 @@ func main() {
 	xiuxiu.EsMediaScan(client, xiuxiu.EsIndice, xiuxiu.EsType, func(em xiuxiu.EsMedia) {
 		when_es_media(client, em)
 	})
+	for term, info := range _terms {
+		fmt.Println(term, info.weight/info.freq, info.pos)
+	}
 }
 
 func when_es_media(client *elastic.Client, em xiuxiu.EsMedia) {
+	print_words(em.NameNorm, int(em.Weight*1010), "nz")
+	print_words(em.Actors, int(em.Weight*1000), "nr")
+	print_words(em.Directors, int(em.Weight*800), "nr")
+	print_words(em.Roles, int(em.Weight*700), "nr")
 	tags := strings.Fields(em.Tags)
-	print_words(tags)
+	print_words(tags, int(em.Weight*500), "n")
 }
-func print_words(v []string) {
-	for _, word := range v {
-		if len(word) > 0 && word[0] > 128 {
-			fmt.Println(word)
+
+type Term struct {
+	weight int
+	freq   int
+	pos    string
+}
+
+var _terms = map[string]*Term{}
+var _puncts = "，。？！、；：“” ‘’（）─…—·《》〈〉+-×÷≈＜＞%‰∞∝√∵∴∷∠⊙○π⊥∪°′〃℃{}()[].|&*/#~.,:;?!'-→．"
+
+func strip_space_punctuation(x string) string {
+	var invalid bool
+
+	for _, r := range []rune(x) {
+		if unicode.IsDigit(r) || unicode.IsPunct(r) || strings.ContainsRune(_puncts, r) || (r < 256) {
+			invalid = true
+		}
+	}
+	if invalid {
+		return ""
+	}
+	return x
+}
+func print_words(v []string, weight int, pos string) {
+	for _, item := range v {
+		item = strip_space_punctuation(item)
+		if len(item) == 0 {
+			continue
+		}
+		if term, ok := _terms[item]; ok {
+			term.weight = term.weight + weight
+			term.freq = term.freq + 1
+		} else {
+			_terms[item] = &Term{weight, 1, pos}
 		}
 	}
 }

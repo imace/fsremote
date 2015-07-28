@@ -22,14 +22,9 @@ const (
 type handler func(w http.ResponseWriter, r *http.Request)
 
 var (
-	q    = flag.String("q", "剪刀x手x德华", "query word")
-	addr = flag.String("addr", ":9204", "listen address")
-	face = flag.String("face", "172.16.13.16:6767", "libface address")
-)
-
-var (
-	_medias = make(map[int]*xiuxiu.EsMedia)
-	_fuzzy  = NewModel()
+	addr, sego, face string
+	_medias          = make(map[int]*xiuxiu.EsMedia)
+	_fuzzy           = NewModel()
 )
 
 const (
@@ -44,6 +39,9 @@ const (
 )
 
 func init() {
+	flag.StringVar(&addr, "addr", ":8082", "listen address")
+	flag.StringVar(&face, "face", "172.16.13.16:6767", "libface address")
+	flag.StringVar(&sego, "sego", "172.16.13.16:8080", "sego address")
 	_fuzzy.SetDepth(edit_distance)
 }
 
@@ -55,9 +53,17 @@ func main() {
 	http.Handle("/face", handler(handle_face)) //q=querystring&n=
 	http.Handle("/app/select", handler(handle_app_select))
 	http.Handle("/es/match", handler(handle_es_match))
-	http.ListenAndServe(*addr, nil)
-}
+	http.Handle("/sego", handler(handle_sego))
+	http.Handle("/fuzzy", handler(handle_fuzzy))
 
+	http.ListenAndServe(addr, nil)
+}
+func handle_fuzzy(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	term := r.FormValue("term")
+	x := fuzzy_trim(fuzzy_suggest(term))
+	panic_error(json.NewEncoder(w).Encode(x))
+}
 func handle_face(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	q := r.FormValue("q")
@@ -65,7 +71,7 @@ func handle_face(w http.ResponseWriter, r *http.Request) {
 	if n < 1 {
 		n = 16
 	}
-	x := face_trim(face_suggest_wrap(q, n))
+	x := face_trim(face_suggest(q, n))
 
 	panic_error(json.NewEncoder(w).Encode(x))
 }

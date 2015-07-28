@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/hearts.zhang/xiuxiu"
 	"github.com/olivere/elastic"
@@ -27,12 +28,23 @@ func load_medias() {
 	xiuxiu.EsMediaScan(client, xiuxiu.EsIndice, xiuxiu.EsType, func(em xiuxiu.EsMedia) {
 		when_es_media(em)
 	})
-	log.Println("load-medias done")
 }
-
+func add_fuzzy_words(words []string, weight int, hint string) {
+	for _, word := range words {
+		if len([]rune(word)) > 1 {
+			_fuzzy.SetCount(word, weight, hint, true)
+		}
+	}
+}
 func when_es_media(m xiuxiu.EsMedia) {
 	_medias[m.MediaID] = &m
-	_fuzzy.SetCount(m.Name, int(m.Weight*10000), strconv.Itoa(m.MediaID), true)
+	weight, id := int(m.Weight*10000), strconv.Itoa(m.MediaID)
+	//_fuzzy.SetCount(m.Name, int(m.Weight*10000), strconv.Itoa(m.MediaID), true)
+	add_fuzzy_words(m.NameNorm, weight, id)
+	add_fuzzy_words(m.Actors, weight, id)
+	add_fuzzy_words(m.Roles, weight, id)
+	add_fuzzy_words(m.Directors, weight, id)
+	add_fuzzy_words(strings.Fields(m.Tags), weight, id)
 }
 
 func face_uniq(dup []FaceSuggest) (v []*xiuxiu.EsMedia) {
@@ -85,14 +97,9 @@ func media_id(fs FaceSuggest) int {
 }
 
 func face_address() string {
-	return "http://" + (*face) + "/face/suggest/"
+	return "http://" + face + "/face/suggest/"
 }
 
-func face_suggest_wrap(q string, n int) []FaceSuggest {
-	x := face_suggest(q, n)
-
-	return x
-}
 func face_suggest(q string, n int) []FaceSuggest {
 	log.Println("search", q)
 	params := url.Values{}
@@ -109,4 +116,19 @@ func face_suggest(q string, n int) []FaceSuggest {
 	v := []FaceSuggest{}
 	err = json.NewDecoder(resp.Body).Decode(&v)
 	return v
+}
+func fuzzy_suggest(term string) []TermData {
+	_, v := _fuzzy.Suggestions(term, true)
+	return v
+}
+func fuzzy_trim(v []TermData) (ret FaceSuggests) {
+	medias := map[int]struct{}{}
+	for _, td := range v {
+		id := atoi(td.Snippet)
+		if _, ok := medias[id]; !ok {
+			medias[id] = struct{}{}
+			ret.Suggests = append(ret.Suggests, _medias[id])
+		}
+	}
+	return
 }

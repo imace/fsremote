@@ -5,10 +5,9 @@ import (
 	"flag"
 	"log"
 	"net/http"
-	"net/url"
 	"reflect"
 
-	"github.com/hearts.zhang/fsremote"
+	"github.com/hearts.zhang/xiuxiu"
 	"github.com/olivere/elastic"
 )
 
@@ -38,12 +37,12 @@ func main() {
 	http.ListenAndServe(addr, nil)
 
 }
-func es_query(q string) (v []fsremote.EsMedia) {
+func es_query(q string) (v []xiuxiu.EsMedia) {
 	result, err := script_score_query(client, q)
 	panic_error(err)
-	var ttyp fsremote.EsMedia
+	var ttyp xiuxiu.EsMedia
 	for _, item := range result.Each(reflect.TypeOf(ttyp)) {
-		if em, ok := item.(fsremote.EsMedia); ok {
+		if em, ok := item.(xiuxiu.EsMedia); ok {
 			v = append(v, em)
 		}
 	}
@@ -51,52 +50,14 @@ func es_query(q string) (v []fsremote.EsMedia) {
 	return
 }
 
-/*
-  "sort": [
-    {
-      "weight": {
-        "order": "desc"
-      }
-    }
-  ],*/
-func script_score_query(client *elastic.Client, q string) (*elastic.SearchResult, error) {
-	body := map[string]interface{}{
-		"sort": []map[string]interface{}{
-			map[string]interface{}{
-				"weight": map[string]interface{}{
-					"order": "desc",
-				},
-			},
-		},
-		"query": map[string]interface{}{
-			"function_score": map[string]interface{}{
-				"functions": []map[string]interface{}{
-					map[string]interface{}{
-						"script_score": map[string]interface{}{
-							"script": "_source.weight",
-						},
-					},
-				},
-				"query": map[string]interface{}{
-					"term": map[string]interface{}{
-						"tags": q,
-					},
-				},
-			},
-		},
-	}
-	///fsmedia2/media/_search
-	res, err := client.PerformRequest("POST", "/fsmedia2/media/_search", url.Values{}, body)
-	if err != nil {
-		return nil, err
-	}
+func script_score_query(client *elastic.Client, s string) (*elastic.SearchResult, error) {
+	//q := elastic.NewMoreLikeThisFieldQuery("tags", "Golang topic.")
+	q := elastic.NewFunctionScoreQuery().
+		Query(elastic.NewTermQuery("tags", s)).
+		AddScoreFunc(elastic.NewFieldValueFactorFunction().Field("weight"))
 
-	// Return search results
-	ret := new(elastic.SearchResult)
-	if err := json.Unmarshal(res.Body, ret); err != nil {
-		return nil, err
-	}
-	return ret, nil
+	results, err := client.Search().Index("fsmedia2").Query(&q).From(0).Size(200).Do()
+	return results, err
 }
 func handle_face(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()

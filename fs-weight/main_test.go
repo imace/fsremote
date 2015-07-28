@@ -6,9 +6,9 @@ import (
 )
 
 func TestFace(t *testing.T) {
-	x := face_trim(face_suggest_wrap("雨"), false)
+	x := face_trim(face_suggest("雨", 32))
 	for _, s := range x.Suggests {
-		t.Log(s.Media.Name, s.Score, s.Phrase)
+		t.Log(s.Name, s.Weight)
 	}
 
 }
@@ -16,4 +16,10 @@ func TestMain(m *testing.M) {
 	load_medias()
 	r := m.Run()
 	os.Exit(r)
+}
+func TestFuzzy(t *testing.T) {
+	x := fuzzy_trim(fuzzy_suggest("刘d华"))
+	for _, m := range x.Suggests {
+		t.Log(m.Name, m.Weight)
+	}
 }
