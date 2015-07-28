@@ -6,6 +6,7 @@ import (
 )
 
 func TestFace(t *testing.T) {
+	t.Skip()
 	x := face_trim(face_suggest("雨", 32))
 	for _, s := range x.Suggests {
 		t.Log(s.Name, s.Weight)

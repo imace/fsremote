@@ -1,6 +1,7 @@
 package main
 
 import (
+	"container/heap"
 	"encoding/json"
 	"errors"
 	"log"
@@ -57,6 +58,30 @@ func face_uniq(dup []FaceSuggest) (v []*xiuxiu.EsMedia) {
 		}
 	}
 	return
+}
+
+type MediaHeap []*xiuxiu.EsMedia
+
+func (slice MediaHeap) Len() int {
+	return len(slice)
+}
+
+func (s MediaHeap) Less(i, j int) bool {
+	return s[i].Weight > s[j].Weight
+}
+
+func (slice MediaHeap) Swap(i, j int) {
+	slice[i], slice[j] = slice[j], slice[i]
+}
+func (h *MediaHeap) Push(x interface{}) {
+	*h = append(*h, x.(*xiuxiu.EsMedia))
+}
+func (h *MediaHeap) Pop() interface{} {
+	old := *h
+	n := len(old)
+	x := old[n-1]
+	*h = old[0 : n-1]
+	return x
 }
 
 type FaceSuggestSlice []FaceSuggest
@@ -123,12 +148,23 @@ func fuzzy_suggest(term string) []TermData {
 }
 func fuzzy_trim(v []TermData) (ret FaceSuggests) {
 	medias := map[int]struct{}{}
+	mh := &MediaHeap{}
+	heap.Init(mh)
 	for _, td := range v {
 		id := atoi(td.Snippet)
 		if _, ok := medias[id]; !ok {
 			medias[id] = struct{}{}
-			ret.Suggests = append(ret.Suggests, _medias[id])
+			heap.Push(mh, _medias[id])
 		}
+	}
+	count := 10
+	if mh.Len() < 10 {
+		count = mh.Len()
+	} else if mh.Len() > 20 {
+		count = 20
+	}
+	for i := 0; i < count; i++ {
+		ret.Suggests = append(ret.Suggests, heap.Pop(mh).(*xiuxiu.EsMedia))
 	}
 	return
 }
