@@ -11,12 +11,8 @@ import (
 	"github.com/olivere/elastic"
 )
 
-var (
-	debug bool
-)
-
 func init() {
-	flag.BoolVar(&debug, "debug", true, "diagnose mode")
+
 }
 
 var _media xiuxiu.EsMedia
@@ -39,7 +35,7 @@ func uniq_string(a []string) (v []string) {
 	for k := range set {
 		v = append(v, k)
 	}
-	return v
+	return
 }
 func remove_china_hk(tags []string, loc string) (v []string) {
 	if !strings.Contains(loc, "中国香港") {
@@ -88,13 +84,13 @@ func loctyp2tag(loc, typ string) (tags []string) {
 	}
 	if strings.Contains(loc, "日本") {
 		tags = append(tags, "日剧")
+		tags = append(tags, "日韩")
 	}
 	if strings.Contains(loc, "韩国") {
 		tags = append(tags, "韩剧")
-	}
-	if strings.Contains(loc, "韩国") && strings.Contains(loc, "日本") {
 		tags = append(tags, "日韩")
 	}
+
 	return
 }
 func type2tag(typ string) (tags []string) {
@@ -102,8 +98,6 @@ func type2tag(typ string) (tags []string) {
 	case "movie":
 		tags = append(tags, "电影")
 		tags = append(tags, "影片")
-		tags = append(tags, "影片儿")
-		tags = append(tags, "片儿")
 	case "tv":
 		tags = append(tags, "电视")
 		tags = append(tags, "电视剧")
@@ -128,23 +122,26 @@ func type2tag(typ string) (tags []string) {
 
 func location2tag(loc string) (tags []string) {
 	tags = xiuxiu.EsStringSplit(loc)
-	if strings.Contains(loc, "中国") {
+	if strings.Contains(loc, "中国") && !strings.Contains(loc, "香港") {
 		tags = append(tags, "国产")
 		tags = append(tags, "国内")
 		tags = append(tags, "大陆")
 	}
-
-	if strings.Contains(loc, "香港") {
+	if strings.Contains(loc, "中国香港") {
 		tags = append(tags, "港片")
-		tags = append(tags, "港片儿")
+		tags = append(tags, "香港")
+	} else if strings.Contains(loc, "香港") {
+		tags = append(tags, "港片")
 	}
 	if strings.Contains(loc, "英国") {
 		tags = append(tags, "英剧")
 	}
 	if strings.Contains(loc, "日本") {
+		tags = append(tags, "日韩")
 		tags = append(tags, "日剧")
 	}
 	if strings.Contains(loc, "韩国") {
+		tags = append(tags, "日韩")
 		tags = append(tags, "韩剧")
 	}
 
@@ -153,28 +150,30 @@ func location2tag(loc string) (tags []string) {
 func remove_char(tags []string) (v []string) {
 	for _, tag := range tags {
 		rt := []rune(tag)
-		if len(rt) > 1 {
+		if len(rt) > 1 || (len(rt) == 1 && rt[0] > 256) { // exclude ascii char
 			v = append(v, tag)
+		} else {
+			log.Println(tag)
 		}
 	}
 	return
 }
 
-//	_, err = client.Index().Index(es_index).Type("equip").Id(strconv.Itoa(int(e.EquipId))).BodyJson(&e).Do()
 func when_es_media(client *elastic.Client, em xiuxiu.EsMedia) {
 	_media = em
 	tags := strings.Fields(em.Tags)
-	tags = remove_china_hk(tags, em.Country)
+
 	tags = append(tags, type2tag(em.DisplayType)...)
 	tags = append(tags, location2tag(em.Country)...)
 	tags = append(tags, loctyp2tag(em.Country, em.DisplayType)...)
 	tags = remove_char(tags)
 	tags = uniq_string(tags)
-	if debug == true {
+	if xiuxiu.EsDebug {
 		fmt.Println(tags)
+		fmt.Println(em.Tags)
 		return
 	}
-	//	em.Tags = strings.Join(tags, " ")
+	em.Tags = strings.Join(tags, " ")
 	if _, err := client.Index().Index(xiuxiu.EsIndice).Type(xiuxiu.EsType).Id(strconv.Itoa(em.MediaID)).BodyJson(&em).Do(); err != nil {
 		log.Println(err)
 	} else {

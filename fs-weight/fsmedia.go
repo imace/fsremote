@@ -1,79 +1,48 @@
 package main
 
 import (
-	"bufio"
-	"container/heap"
 	"encoding/json"
 	"errors"
 	"log"
-	"math"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
-	"strings"
-	"time"
 
 	"github.com/hearts.zhang/xiuxiu"
+	"github.com/olivere/elastic"
 )
 
 type FaceSuggests struct {
-	Suggests []FaceSuggest `json:"suggests,omitempty"`
+	Suggests []*xiuxiu.EsMedia `json:"suggests,omitempty"`
 }
 type FaceSuggest struct {
-	Phrase  string          `json:"phrase"`
-	Score   int             `json:"score"`
-	Snippet string          `json:"snippet,omitempty"`
-	Dup     int             `json:"dup"`
-	Media   xiuxiu.FunMedia `json:"media,omitempty"`
+	Phrase  string `json:"phrase"`
+	Score   int    `json:"score"`
+	Snippet string `json:"snippet,omitempty"`
 }
 
 func load_medias() {
-	file, err := os.Open(*medias_file)
+	client, err := elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(xiuxiu.EsAddr))
 	panic_error(err)
-	defer file.Close()
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		to_fun_media(line)
-	}
-}
-func to_fun_media(line string) {
-	var m xiuxiu.FunMedia
-	panic_error(json.Unmarshal([]byte(line), &m))
-	_medias[m.MediaId] = &m
-	fill_rune2medias(&m)
+	xiuxiu.EsMediaScan(client, xiuxiu.EsIndice, xiuxiu.EsType, func(em xiuxiu.EsMedia) {
+		when_es_media(em)
+	})
+	log.Println("load-medias done")
 }
 
-func fill_rune2medias(m *xiuxiu.FunMedia) {
-	_fuzzy.SetCount(m.Name, 1, strconv.Itoa(m.MediaId), true)
+func when_es_media(m xiuxiu.EsMedia) {
+	_medias[m.MediaID] = &m
+	_fuzzy.SetCount(m.Name, int(m.Weight*10000), strconv.Itoa(m.MediaID), true)
 }
 
-func face_uniq(dup []FaceSuggest, accu bool) (v []FaceSuggest) {
-	x := make(map[string]*FaceSuggest)
+func face_uniq(dup []FaceSuggest) (v []*xiuxiu.EsMedia) {
+	x := map[int]struct{}{}
 	for _, suggest := range dup {
-		if v, ok := x[suggest.Snippet]; ok {
-
-			if accu {
-				v.Score = v.Score + suggest.Score
-				v.Dup++
-			} else if v.Score < suggest.Score {
-				var tmp = suggest
-				x[suggest.Snippet] = &tmp
-			}
-		} else {
-			var tmp = suggest
-			x[suggest.Snippet] = &tmp
+		id := atoi(suggest.Snippet)
+		if _, ok := x[id]; !ok {
+			x[id] = struct{}{}
+			v = append(v, _medias[id])
 		}
-
-	}
-	var h = &FaceSuggestSlice{}
-	heap.Init(h)
-	for _, val := range x {
-		heap.Push(h, *val)
-	}
-	for h.Len() > 0 && len(v) < limit {
-		v = append(v, heap.Pop(h).(FaceSuggest))
 	}
 	return
 }
@@ -85,13 +54,7 @@ func (slice FaceSuggestSlice) Len() int {
 }
 
 func (s FaceSuggestSlice) Less(i, j int) bool {
-	if s[i].Dup > s[j].Dup {
-		return true
-	} else if s[i].Dup == s[j].Dup {
-		return s[i].Score > s[j].Score
-	} else {
-		return false
-	}
+	return s[i].Score > s[j].Score
 }
 
 func (slice FaceSuggestSlice) Swap(i, j int) {
@@ -110,17 +73,10 @@ func (h *FaceSuggestSlice) Pop() interface{} {
 }
 
 //uniq and sort
-func face_trim(dup []FaceSuggest, accu bool) FaceSuggests {
-	v := face_uniq(dup, accu)
+func face_trim(dup []FaceSuggest) FaceSuggests {
+	v := face_uniq(dup)
 
-	fill_media(v)
 	return FaceSuggests{v}
-}
-
-func fill_media(medias []FaceSuggest) {
-	for i := 0; i < len(medias); i++ {
-		medias[i].Media = *_medias[media_id(medias[i])]
-	}
 }
 
 func media_id(fs FaceSuggest) int {
@@ -132,24 +88,16 @@ func face_address() string {
 	return "http://" + (*face) + "/face/suggest/"
 }
 
-func face_suggest_wrap(q string) []FaceSuggest {
-	x := face_suggest(q)
-	log.Println("face return", len(x))
+func face_suggest_wrap(q string, n int) []FaceSuggest {
+	x := face_suggest(q, n)
 
-	if len(x) < 5 {
-		x = append(x, face_split_suggest(q)...)
-		log.Println("fuzzy return", len(x))
-	}
-	if len(x) < 5 {
-		x = append(x, es_search(q)...)
-		log.Println("es return", len(x))
-	}
 	return x
 }
-func face_suggest(q string) []FaceSuggest {
+func face_suggest(q string, n int) []FaceSuggest {
 	log.Println("search", q)
 	params := url.Values{}
 	params.Add("q", q)
+	params.Add("n", strconv.Itoa(n))
 	uri := face_address() + "?" + params.Encode()
 	resp, err := http.Get(uri)
 	panic_error(err)
@@ -161,67 +109,4 @@ func face_suggest(q string) []FaceSuggest {
 	v := []FaceSuggest{}
 	err = json.NewDecoder(resp.Body).Decode(&v)
 	return v
-}
-
-func face_split_suggest(q string) []FaceSuggest {
-	var v []FaceSuggest
-	_, datas := _fuzzy.Suggestions(q, true)
-	for _, data := range datas {
-		m := _medias[atoi(data.Snippet)]
-		v = append(v, FaceSuggest{m.Name, int(m.Weight), strconv.Itoa(m.MediaId), 1, *m})
-	}
-
-	return v
-}
-
-func es_address() string {
-	return "http://" + (*es) + "/search.php"
-}
-
-func es_search(q string) (v []FaceSuggest) {
-	params := url.Values{}
-	params.Add("tags", q)
-	uri := es_address() + "?" + params.Encode()
-	log.Println(uri)
-	resp, err := http.Get(uri)
-	panic_error(err)
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		panic_error(errors.New("status not ok"))
-	}
-
-	xv := xiuxiu.EsMedias{}
-	err = json.NewDecoder(resp.Body).Decode(&xv)
-	for _, m := range xv.Data {
-		item := xiuxiu.FunMedia{
-			m.MediaID, m.Name, m.Name, m.NameEn, m.NameOt, m.Lang, int(m.MediaLength), m.Country, 0, m.CoverPicID, strings.Fields(m.Tags), 0,
-		}
-
-		sc := int(m.Release)
-		v = append(v, FaceSuggest{"", score(m.Day, m.Week, m.Seven, m.Month, m.Play, sc), strconv.Itoa(m.MediaID), 0, item})
-	}
-	return
-}
-
-const _2020 = 1577836800
-
-func score(d, w, s7, m, t, date int) int {
-	r, l, dt := time.Unix(0, 0), time.Unix(_2020, 0), time.Unix(int64(date), 0)
-	rg := math.Log(l.Sub(r).Hours() / 24)
-	dr := dt.Sub(r).Hours() / 24
-	dl := l.Sub(dt).Hours() / 24
-	if dr < math.E {
-		dr = math.E
-	}
-	if dl < math.E {
-		dl = math.E
-	}
-	r1, l1 := math.Log(dr)/rg, math.Log(dl)/rg
-	weight := r1*1.0 + l1*2.0
-	days := time.Since(time.Unix(int64(date), 0)).Hours() / 24
-	if days < 1.0 {
-		days = 1.0
-	}
-	x := float64(t)/days + float64(d) + float64(s7)/7.0 + float64(w)/5.0 + float64(m)/30.0
-	return int(x * weight)
 }

@@ -1,5 +1,6 @@
 package main
 
+//depends es-nameot /es-digit
 import (
 	"flag"
 	"fmt"
@@ -23,8 +24,10 @@ func main() {
 func remove_char(tags []string) (v []string) {
 	for _, tag := range tags {
 		rt := []rune(tag)
-		if len(rt) > 1 {
+		if len(rt) > 1 || (len(rt) == 1 && rt[0] > 256) { // exclude ascii char
 			v = append(v, tag)
+		} else {
+			log.Println(tag)
 		}
 	}
 	return
@@ -40,14 +43,18 @@ func remove_n_chinese(tags []string) (v []string) {
 }
 func when_es_media(client *elastic.Client, em xiuxiu.EsMedia) {
 	x := strings.Fields(em.Tags)
+	x = append(x, em.Directors...)
 	x = append(x, em.Actors...)
 	x = append(x, em.Roles...)
 	x = append(x, em.NameNorm...)
 	x = remove_char(x)
-	x = remove_n_chinese(x)
+	//	x = remove_n_chinese(x)
 	x = xiuxiu.EsUniqSlice(x)
-
-	em.Tags2 = strings.Join(x, " ")
+	if xiuxiu.EsDebug {
+		fmt.Println(x)
+		return
+	}
+	em.Tags = strings.Join(x, " ")
 	if _, err := client.Index().Index(xiuxiu.EsIndice).Type(xiuxiu.EsType).Id(strconv.Itoa(em.MediaID)).BodyJson(&em).Do(); err != nil {
 		log.Println(err)
 	} else {

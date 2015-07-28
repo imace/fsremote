@@ -26,21 +26,10 @@ func main() {
 
 }
 
-func uniq_string(a []string) (v []string) {
-	set := make(map[string]struct{})
-	for _, i := range a {
-		set[i] = struct{}{}
-	}
-	for k := range set {
-		v = append(v, k)
-	}
-	return v
-}
 func when_es_media(client *elastic.Client, em xiuxiu.EsMedia) {
 	media = em
 	var v = strings.Fields(em.Tags)
 
-	v = uniq_string(v)
 	append_phrase(v, int(em.Weight*10000), em.MediaID)
 }
 

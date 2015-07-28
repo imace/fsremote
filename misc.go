@@ -80,70 +80,13 @@ func create_index(client *elastic.Client, index string) error {
 	return err
 }
 
-func EmCleanName(orig string) (names []string) {
-	v := em_clean_name(orig)
-	for _, name := range v {
-		chars := []rune(name)
-		if len(chars) > 1 && chars[0] > 256 {
-			names = append(names, name)
-		}
-	}
-	names = uniq_string(names)
-	return
-}
-func split_cn_en(s string) (v []string) {
-	var current []rune
-	orig := []rune(s)
-	var eng bool
-	for _, r := range orig {
-		if r < 256 {
-			if eng == false {
-				if len(current) > 0 {
-					v = append(v, string(current))
-					current = nil
-					eng = true
-				}
-				current = append(current, r)
-			}
-		} else {
-			if eng == true {
-				if len(current) > 0 {
-					v = append(v, string(current))
-					current = nil
-					eng = false
-				}
-				current = append(current, r)
-			}
-		}
-	}
-	if len(current) > 0 {
-		v = append(v, string(current))
-	}
-	return
-}
-func strip_string_english(x string) string {
-	orig := []rune(x)
-	var n []rune
-	for _, r := range orig {
-		if r > 255 {
-			n = append(n, r)
-		}
-	}
-	return string(n)
-}
 func strip_english(dirs []string) (names []string) {
 	for _, d := range dirs {
-		if nm := strip_string_english(d); len(nm) > 0 {
-			names = append(names, nm)
+		if len(d) > 0 && d[0] > 128 {
+			names = append(names, d)
 		}
 	}
 	return names
-}
-func EmCleanDirector(orig string) (names []string) {
-	s1 := em_clean_name(orig)
-	s1 = strip_english(s1)
-	names = uniq_string(s1)
-	return
 }
 
 // /分隔
@@ -151,15 +94,46 @@ func EmCleanDirector(orig string) (names []string) {
 //去掉中文名字中间的空白符
 //去掉名字前后的空白符
 //忽略英文名字
-func em_clean_name(x string) (v []string) {
-	names := strings.Split(x, "/")
-	for _, f := range names {
-		x := strip_space(f)
-		for _, xi := range x {
-			if len([]rune(xi)) > 1 {
-				v = append(v, xi)
+func EmCleanName(x string) (v []string) {
+	for _, n1 := range EmSplitName(x) {
+		for _, n2 := range EmSplitCnEng(n1) {
+			v = append(v, EmSplitNameSep(n2)...)
+		}
+	}
+	v = strip_english(v)
+	v = uniq_string(v)
+	return
+}
+
+func EmSplitName(name string) (v []string) {
+	for _, name := range strings.Split(name, "/") {
+		if tmp := strings.TrimSpace(name); len(tmp) > 0 {
+			v = append(v, tmp)
+		}
+	}
+	return v
+}
+
+//分隔相连的中英文
+func EmSplitCnEng(name string) (v []string) {
+	v = append(v, name)
+	var current []rune
+
+	var eng bool
+	for _, r := range []rune(name) {
+		if (r < 256 && eng == false) || (r >= 256 && eng == true) {
+			if len(current) > 0 {
+				if current[0] != '·' {
+					v = append(v, string(current))
+				}
+				current = nil
+				eng = !eng
 			}
 		}
+		current = append(current, r)
+	}
+	if len(current) > 0 {
+		v = append(v, string(current))
 	}
 	return
 }
@@ -168,25 +142,32 @@ func em_clean_name(x string) (v []string) {
 func string_strip_space(x string) string {
 	var v []rune
 	for _, r := range []rune(x) {
-		if !unicode.IsSpace(r) && r != '-' && r != '、' && r != '&' && r != '#' {
+		if !unicode.IsSpace(r) && r != '-' && r != '、' && r != '&' && r != '#' && r != '\'' {
 			v = append(v, r)
 		}
 	}
 	return string(v)
 }
-
+func strip_sep(x string) string {
+	var v []rune
+	for _, r := range []rune(x) {
+		if !seps(r) {
+			v = append(v, r)
+		}
+	}
+	return string(v)
+}
 func seps(r rune) bool {
 	return unicode.IsSpace(r) || r == '·' || r == '-' || r == '：' || r == ':'
 }
-func strip_space(x string) (ret []string) {
-	x = strings.TrimSpace(x)
-	tmp := strings.FieldsFunc(x, seps)
-	for _, w := range tmp {
-		if len(w) > 0 && []rune(w)[0] > 128 { //中文
-			w = string_strip_space(w)
+func EmSplitNameSep(x string) (ret []string) {
+	if xr := []rune(x); len(xr) > 0 {
+		if xr[0] > 256 {
+			x = string_strip_space(x)
 		}
-		tmp2 := strings.Fields(w)
-		ret = append(ret, tmp2...)
+		ret = append(ret, x)
+		ret = append(ret, strings.FieldsFunc(x, seps)...)
+		ret = append(ret, strip_sep(x))
 	}
 	return
 }
@@ -205,6 +186,7 @@ func uniq_string(a []string) (v []string) {
 	return v
 }
 
+//按照/分隔
 func EsStringSplit(x string) (v []string) {
 	fields := strings.Split(x, "/")
 	for _, f := range fields {
@@ -213,4 +195,33 @@ func EsStringSplit(x string) (v []string) {
 		}
 	}
 	return
+}
+
+var a2c = map[rune]rune{
+	'1': '一',
+	'2': '二',
+	'3': '三',
+	'4': '四',
+	'5': '五',
+	'6': '六',
+	'7': '七',
+	'8': '八',
+	'9': '九',
+	'0': '零',
+}
+
+func EsNormDigit(n string) string {
+	return norm_digit(n)
+}
+func norm_digit(n string) string {
+	var x []rune
+
+	for _, r := range []rune(n) {
+		if t, ok := a2c[r]; ok {
+			x = append(x, t)
+		} else {
+			x = append(x, r)
+		}
+	}
+	return string(x)
 }

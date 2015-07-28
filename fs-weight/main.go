@@ -22,15 +22,13 @@ const (
 type handler func(w http.ResponseWriter, r *http.Request)
 
 var (
-	q           = flag.String("q", "剪刀x手x德华", "query word")
-	addr        = flag.String("addr", ":9204", "listen address")
-	face        = flag.String("face", "testbox02.chinacloudapp.cn:9203", "libface address")
-	medias_file = flag.String("medias", "e:/medias.json", "media file")
-	es          = flag.String("es", "es.fun.tv", "es search host")
+	q    = flag.String("q", "剪刀x手x德华", "query word")
+	addr = flag.String("addr", ":9204", "listen address")
+	face = flag.String("face", "172.16.13.16:6767", "libface address")
 )
 
 var (
-	_medias = make(map[int]*xiuxiu.FunMedia)
+	_medias = make(map[int]*xiuxiu.EsMedia)
 	_fuzzy  = NewModel()
 )
 
@@ -49,46 +47,31 @@ func init() {
 	_fuzzy.SetDepth(edit_distance)
 }
 
-func main_test() {
-	flag.Parse()
-	load_medias()
-
-	x := face_trim(face_split_suggest(*q), true)
-
-	for _, i := range x.Suggests {
-		fmt.Println(i)
-	}
-}
 func main() {
 	flag.Parse()
 	load_medias()
-	log.Println("start server")
-	http.Handle("/face", handler(handle_face)) //
 
+	log.Println("start server")
+	http.Handle("/face", handler(handle_face)) //q=querystring&n=
 	http.Handle("/app/select", handler(handle_app_select))
-	http.Handle("/es/query", handler(handle_es_query)) //tags, q
 	http.Handle("/es/match", handler(handle_es_match))
 	http.ListenAndServe(*addr, nil)
 }
 
-//[{ "phrase": "西亚特快", "score": 106, "snippet": "15627" }]
 func handle_face(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	q := r.FormValue("q")
-	x := face_trim(face_suggest_wrap(q), false)
+	n := atoi(r.FormValue("n"))
+	if n < 1 {
+		n = 16
+	}
+	x := face_trim(face_suggest_wrap(q, n))
 
 	panic_error(json.NewEncoder(w).Encode(x))
 }
 
 func handle_app_select(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-}
-
-func handle_es_query(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-	q := r.FormValue("q")
-	x := face_trim(es_search(q), false)
-	panic_error(json.NewEncoder(w).Encode(x))
 }
 
 func handle_es_match(w http.ResponseWriter, r *http.Request) {

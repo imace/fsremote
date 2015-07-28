@@ -19,13 +19,16 @@ func main() {
 		when_es_media(client, em)
 	})
 }
+
 func when_es_media(client *elastic.Client, em xiuxiu.EsMedia) {
-	directors := xiuxiu.EmCleanDirector(em.Director)
+	directors := xiuxiu.EmCleanName(em.Director)
+	actors := xiuxiu.EmCleanName(em.Actor)
 	if xiuxiu.EsDebug {
-		fmt.Println(directors, em.Director)
+		fmt.Println(directors, em.Director, actors, em.Actor)
 		return
 	}
 	em.Directors = directors
+	em.Actors = actors
 	if _, err := client.Index().Index(xiuxiu.EsIndice).Type(xiuxiu.EsType).Id(strconv.Itoa(em.MediaID)).BodyJson(&em).Do(); err != nil {
 		log.Println(err)
 	} else {
