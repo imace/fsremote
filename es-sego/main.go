@@ -2,24 +2,18 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"flag"
 	"net/http"
-	"net/url"
 	"strings"
+
+	"github.com/huichen/sego"
 )
 
 var (
-	addr, sego  string
-	_stop_words map[string]struct{}
+	addr, dict string
+	_puncts    string = "的，在。？！、；：“” ‘’（）─…—·《》【】［］〈〉+-×÷≈＜＞%‰∞∝√∵∴∷∠⊙○π⊥∪°′〃℃{}()[].|&*/#~.,:;?!'-→．"
 )
 
-type Segments struct {
-	Segments []struct {
-		Text string `json:"text"`
-		Pos  string `json:"pos"`
-	} `json:"segments"`
-}
 type Terms struct {
 	Terms []string `json:"terms,omitempty"`
 }
@@ -27,12 +21,13 @@ type handler func(w http.ResponseWriter, r *http.Request)
 
 func init() {
 	flag.StringVar(&addr, "addr", ":8081", "listen address")
-	flag.StringVar(&sego, "sego", "172.16.13.16:8080", "sego address")
-	_stop_words = make(map[string]struct{})
-	_stop_words["的"] = struct{}{}
+	flag.StringVar(&dict, "dict", "e:/sego.dic,e:/dictionary.txt,e:/dict.txt", "sego dict, user dict first")
 }
 func main() {
 	flag.Parse()
+
+	_segmenter.LoadDictionary(dict)
+
 	http.Handle("/sego", handler(handle_sego)) //?text=
 	http.ListenAndServe(addr, nil)
 }
@@ -43,17 +38,16 @@ func panic_error(err error) {
 }
 
 func is_stop_word(seg string) bool {
-	_, ok := _stop_words[seg]
-	return ok
+	return strings.Contains(_puncts, seg)
 }
 func handle_sego(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	text := r.FormValue("text")
 	segs := segment(text)
 	var terms Terms
-	for _, seg := range segs.Segments {
-		if strings.ContainsRune(seg.Pos, 'n') && !is_stop_word(seg.Text) {
-			terms.Terms = append(terms.Terms, seg.Text)
+	for _, seg := range segs {
+		if len(seg) > 1 && !is_stop_word(seg) {
+			terms.Terms = append(terms.Terms, seg)
 		}
 	}
 	panic_error(json.NewEncoder(w).Encode(&terms))
@@ -67,22 +61,10 @@ func (imp handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 	imp(w, r)
 }
-func sego_address() string {
-	return "http://" + (sego) + "/json"
-}
-func segment(text string) Segments {
-	params := url.Values{}
-	params.Add("text", text)
 
-	uri := sego_address() + "?" + params.Encode()
-	resp, err := http.Get(uri)
-	panic_error(err)
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		panic_error(errors.New("status not ok"))
-	}
+var _segmenter sego.Segmenter
 
-	var v Segments
-	panic_error(json.NewDecoder(resp.Body).Decode(&v))
-	return v
+func segment(text string) []string {
+	v := _segmenter.Segment([]byte(text))
+	return sego.SegmentsToSlice(v, true)
 }
