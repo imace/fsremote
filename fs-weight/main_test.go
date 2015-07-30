@@ -8,7 +8,7 @@ import (
 func TestFace(t *testing.T) {
 	t.Skip()
 	x := face_trim(face_suggest("雨", 32))
-	for _, s := range x.Suggests {
+	for _, s := range x {
 		t.Log(s.Name, s.Weight)
 	}
 
@@ -21,7 +21,7 @@ func _TestMain(m *testing.M) {
 func TestFuzzy(t *testing.T) {
 	t.Skip()
 	x := fuzzy_trim(fuzzy_suggest("刘d华"))
-	for _, m := range x.Suggests {
+	for _, m := range x {
 		t.Log(m.Name, m.Weight)
 	}
 }

@@ -47,6 +47,7 @@ func main() {
 	http.Handle("/fsmedia/fuzzy/term", handler(handle_fuzzy_term)) //term=
 	http.Handle("/img/sogou", handler(handle_img_sogou))           //q=&w=300&h=200
 	http.Handle("/img/redirect.jpg", handler(handle_img_redirect)) //q=&w=200&h=400
+	http.Handle("/pinyin/slug", handler(handle_pinyin_slug))       //hans=
 
 	http.ListenAndServe(addr, nil)
 }
@@ -120,6 +121,16 @@ func handle_img_redirect(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Location", url)
 	w.Header().Set("X-PIC", strconv.Itoa(width)+"x"+strconv.Itoa(height))
 	w.WriteHeader(http.StatusFound)
+}
+
+//hans=
+func handle_pinyin_slug(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	hans := r.FormValue("hans")
+	pinyin := hans_pinyin(hans)
+	panic_error(json.NewEncoder(w).Encode(map[string]interface{}{
+		"pinyin": pinyin,
+	}))
 }
 
 func (imp handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
