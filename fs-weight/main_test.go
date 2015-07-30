@@ -13,12 +13,13 @@ func TestFace(t *testing.T) {
 	}
 
 }
-func TestMain(m *testing.M) {
+func _TestMain(m *testing.M) {
 	load_medias()
 	r := m.Run()
 	os.Exit(r)
 }
 func TestFuzzy(t *testing.T) {
+	t.Skip()
 	x := fuzzy_trim(fuzzy_suggest("刘d华"))
 	for _, m := range x.Suggests {
 		t.Log(m.Name, m.Weight)

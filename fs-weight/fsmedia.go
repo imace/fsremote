@@ -14,9 +14,10 @@ import (
 	"github.com/olivere/elastic"
 )
 
-type FaceSuggests struct {
-	Suggests []*xiuxiu.EsMedia `json:"suggests,omitempty"`
+type Medias struct {
+	Items []*xiuxiu.EsMedia `json:"suggests,omitempty"`
 }
+
 type FaceSuggest struct {
 	Phrase  string `json:"phrase"`
 	Score   int    `json:"score"`
@@ -40,7 +41,7 @@ func add_fuzzy_words(words []string, weight int, hint string) {
 func when_es_media(m xiuxiu.EsMedia) {
 	_medias[m.MediaID] = &m
 	weight, id := int(m.Weight*10000), strconv.Itoa(m.MediaID)
-	//_fuzzy.SetCount(m.Name, int(m.Weight*10000), strconv.Itoa(m.MediaID), true)
+	
 	add_fuzzy_words(m.NameNorm, weight, id)
 	add_fuzzy_words(m.Actors, weight, id)
 	add_fuzzy_words(m.Roles, weight, id)
@@ -110,10 +111,8 @@ func (h *FaceSuggestSlice) Pop() interface{} {
 }
 
 //uniq and sort
-func face_trim(dup []FaceSuggest) FaceSuggests {
-	v := face_uniq(dup)
-
-	return FaceSuggests{v}
+func face_trim(dup []FaceSuggest) []*xiuxiu.EsMedia {
+	return face_uniq(dup)
 }
 
 func media_id(fs FaceSuggest) int {
@@ -146,7 +145,7 @@ func fuzzy_suggest(term string) []TermData {
 	_, v := _fuzzy.Suggestions(term, true)
 	return v
 }
-func fuzzy_trim(v []TermData) (ret FaceSuggests) {
+func fuzzy_trim(v []TermData) (ret []*xiuxiu.EsMedia) {
 	medias := map[int]struct{}{}
 	mh := &MediaHeap{}
 	heap.Init(mh)
@@ -164,7 +163,7 @@ func fuzzy_trim(v []TermData) (ret FaceSuggests) {
 		count = 20
 	}
 	for i := 0; i < count; i++ {
-		ret.Suggests = append(ret.Suggests, heap.Pop(mh).(*xiuxiu.EsMedia))
+		ret = append(ret, heap.Pop(mh).(*xiuxiu.EsMedia))
 	}
 	return
 }

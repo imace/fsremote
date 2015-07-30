@@ -17,8 +17,8 @@ type TermData struct {
 	Snippet string
 }
 type ModelData struct {
-	Score   int
-	Snppets []TermData
+	Score    int
+	Snippets []TermData
 }
 type Potential struct {
 	Term   string
@@ -49,7 +49,9 @@ func (model *Model) Init() *Model {
 	model.Data = make(map[string]*ModelData)
 	model.Suggest = make(map[string][]string)
 	model.Depth = 1
-	model.Threshold = 3 // Setting this to 1 is most accurate, but "1" is 5x more memory and 30x slower processing than "4". This is a big performance tuning knob
+	model.Threshold = 3
+	// Setting this to 1 is most accurate, but "1" is 5x more memory and 30x slower processing than "4".
+	// This is a big performance tuning knob
 	return model
 }
 
@@ -115,7 +117,7 @@ func (model *Model) SetCount(term string, score int, snippet string, suggest boo
 		md = &ModelData{}
 		model.Data[term] = md
 	}
-	md.Snppets = append(md.Snppets, TermData{score, snippet})
+	md.Snippets = append(md.Snippets, TermData{score, snippet})
 	md.Score = md.Score + score
 	if suggest {
 		model.createSuggestKeys(term)
@@ -331,7 +333,7 @@ func (model *Model) Suggestions(input string, exhaustive bool) ([]string, []Term
 	data := make([]TermData, 0, 10)
 	for _, suggestion := range suggestions {
 		output = append(output, suggestion.Term)
-		data = append(data, model.Data[suggestion.Term].Snppets...)
+		data = append(data, model.Data[suggestion.Term].Snippets...)
 	}
 	return output, data
 }

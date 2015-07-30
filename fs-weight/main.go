@@ -4,44 +4,33 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"log"
-	"net"
 	"net/http"
-	"net/url"
 	"strconv"
 
 	"github.com/hearts.zhang/xiuxiu"
 )
 
 const (
-	limit         = 16
 	edit_distance = 1
 )
 
+type Terms struct {
+	Terms []string `json:"terms,omitempty"`
+}
 type handler func(w http.ResponseWriter, r *http.Request)
 
 var (
-	addr, sego, face string
-	_medias          = make(map[int]*xiuxiu.EsMedia)
-	_fuzzy           = NewModel()
-)
-
-const (
-	hao_weather_api_key     = "b721bcdcf5ea4db78e1482fd2668a97c"
-	hao_ip_location_api_key = "06ac888daa9e4c7b8add72845393c543"
-	hao_ip_api_key          = "da3d89162b6f4bee94b11fa03e701522"
-	hao_movie_api_key       = "27e7428ff5654317baf909d803927bb6"
-	hao_video_api_key       = "9f374b640fb54a869c0a10a17d0a0103"
-	hao_financial_api_key   = "d965c03cdd344b97b5df05786ef55279"
-	hao_stock_api_key       = "f504cf57ca8248289ffa7aafd3e318b9"
-	hao_tv_api_key          = "007b155e09b54447a8dc4c105c07057f"
+	addr, sego, face, jieba string
+	_medias                 = make(map[int]*xiuxiu.EsMedia)
+	_fuzzy                  = NewModel()
 )
 
 func init() {
 	flag.StringVar(&addr, "addr", ":8082", "listen address")
 	flag.StringVar(&face, "face", "172.16.13.16:6767", "libface address")
-	flag.StringVar(&sego, "sego", "172.16.13.16:8080", "sego address")
+	flag.StringVar(&sego, "sego", "172.16.13.16:8081", "sego address")
+	flag.StringVar(&jieba, "jieba", "172.16.13.16:8083", "sego address")
 	_fuzzy.SetDepth(edit_distance)
 }
 
@@ -50,30 +39,53 @@ func main() {
 	load_medias()
 
 	log.Println("start server")
-	http.Handle("/face", handler(handle_face)) //q=querystring&n=
 	http.Handle("/app/select", handler(handle_app_select))
 	http.Handle("/es/match", handler(handle_es_match))
-	http.Handle("/sego", handler(handle_sego))
-	http.Handle("/fuzzy", handler(handle_fuzzy))
+	http.Handle("/fsmedia/face/term", handler(handle_face_term))   //t=term&n=
+	http.Handle("/sego/seg", handler(handle_sego_seg))             //text=
+	http.Handle("/jieba/seg", handler(handle_jieba_seg))           //text=
+	http.Handle("/fsmedia/fuzzy/term", handler(handle_fuzzy_term)) //term=
+	http.Handle("/img/sogou", handler(handle_img_sogou))           //q=&w=300&h=200
+	http.Handle("/img/redirect.jpg", handler(handle_img_redirect)) //q=&w=200&h=400
 
 	http.ListenAndServe(addr, nil)
 }
-func handle_fuzzy(w http.ResponseWriter, r *http.Request) {
+
+//text=
+func handle_jieba_seg(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	text := r.FormValue("text")
+	terms := jieba_segment(text)
+	panic_error(json.NewEncoder(w).Encode(&terms))
+}
+
+//text=
+func handle_sego_seg(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	text := r.FormValue("text")
+	terms := sego_segment(text)
+	panic_error(json.NewEncoder(w).Encode(&terms))
+}
+
+//term=
+func handle_fuzzy_term(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	term := r.FormValue("term")
 	x := fuzzy_trim(fuzzy_suggest(term))
-	panic_error(json.NewEncoder(w).Encode(x))
+	panic_error(json.NewEncoder(w).Encode(map[string]interface{}{"items": x}))
 }
-func handle_face(w http.ResponseWriter, r *http.Request) {
+
+//t=term&n=
+func handle_face_term(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	q := r.FormValue("q")
+	term := r.FormValue("t")
 	n := atoi(r.FormValue("n"))
 	if n < 1 {
 		n = 16
 	}
-	x := face_trim(face_suggest(q, n))
+	x := face_trim(face_suggest(term, n))
 
-	panic_error(json.NewEncoder(w).Encode(x))
+	panic_error(json.NewEncoder(w).Encode(map[string]interface{}{"items": x}))
 }
 
 func handle_app_select(w http.ResponseWriter, r *http.Request) {
@@ -85,33 +97,31 @@ func handle_es_match(w http.ResponseWriter, r *http.Request) {
 
 }
 
-//http://apis.haoservice.com/weather/ip?ip=202.108.250.241&key=b721bcdcf5ea4db78e1482fd2668a97c
-func handle_weather_ip(w http.ResponseWriter, r *http.Request) {
+//q=&w=300&h=200
+func handle_img_sogou(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	panic_error(err)
-	uri := hao_weather_ip(host)
+	q, pw, ph := r.FormValue("q"), r.FormValue("w"), r.FormValue("h")
+	url, width, height := sogou_pic(q, atoi(pw), atoi(ph))
+
+	panic_error(json.NewEncoder(w).Encode(map[string]interface{}{
+		"uri":    url,
+		"width":  width,
+		"height": height,
+	}))
+}
+
+//q=&w=300&h=200
+func handle_img_redirect(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	q := r.FormValue("q")
+	q, pw, ph := r.FormValue("q"), r.FormValue("w"), r.FormValue("h")
+	url, width, height := sogou_pic(q, atoi(pw), atoi(ph))
 	w.Header().Del("Content-Type")
-	w.Header().Set("Location", uri)
+	w.Header().Set("Location", url)
+	w.Header().Set("X-PIC", strconv.Itoa(width)+"x"+strconv.Itoa(height))
 	w.WriteHeader(http.StatusFound)
 }
-func handle_weather_city(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-	city := r.FormValue("city")
-	log.Println(r.RemoteAddr, city)
-	uri := hao_weather_city(city)
-	w.Header().Del("Content-Type")
-	w.Header().Set("Location", uri)
-	w.WriteHeader(http.StatusFound)
-}
-func handle_stock_hs(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-	gid := r.FormValue("gid")
-	uri := hao_stock_hs(gid)
-	w.Header().Del("Content-Type")
-	w.Header().Set("Location", uri)
-	w.WriteHeader(http.StatusFound)
-}
+
 func (imp handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	defer func() {
@@ -122,19 +132,6 @@ func (imp handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	imp(w, r)
 }
 
-func hao_weather_ip(ip string) string {
-	return fmt.Sprintf("http://apis.haoservice.com/weather/ip?ip=%v&key=%v", ip, hao_weather_api_key)
-}
-
-//http://apis.haoservice.com/weather?cityname=北京&key=b721bcdcf5ea4db78e1482fd2668a97c
-//http://apis.haoservice.com/lifeservice/stock/hs?gid=sh601009&key=f504cf57ca8248289ffa7aafd3e318b9
-func hao_weather_city(cityname string) string {
-	cn := url.QueryEscape(cityname)
-	return fmt.Sprintf("http://apis.haoservice.com/weather?cityname=%v&key=%v", cn, hao_weather_api_key)
-}
-func hao_stock_hs(gid string) string {
-	return fmt.Sprintf("http://apis.haoservice.com/lifeservice/stock/hs?gid=%v&key=%v", gid, hao_stock_api_key)
-}
 func panic_error(err error) {
 	if err != nil {
 		panic(err)

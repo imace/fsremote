@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"net/http"
+	"net/rpc"
 	"strings"
 
 	"github.com/huichen/sego"
@@ -28,9 +29,13 @@ func main() {
 
 	_segmenter.LoadDictionary(dict)
 
+	rpc.Register((*Sego)(&_segmenter))
+	rpc.HandleHTTP()
+
 	http.Handle("/sego", handler(handle_sego)) //?text=
 	http.ListenAndServe(addr, nil)
 }
+
 func panic_error(err error) {
 	if err != nil {
 		panic(err)
@@ -43,13 +48,9 @@ func is_stop_word(seg string) bool {
 func handle_sego(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	text := r.FormValue("text")
-	segs := segment(text)
-	var terms Terms
-	for _, seg := range segs {
-		if len(seg) > 1 && !is_stop_word(seg) {
-			terms.Terms = append(terms.Terms, seg)
-		}
-	}
+
+	terms := Terms{segment(text)}
+
 	panic_error(json.NewEncoder(w).Encode(&terms))
 }
 func (imp handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -64,7 +65,13 @@ func (imp handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 var _segmenter sego.Segmenter
 
-func segment(text string) []string {
-	v := _segmenter.Segment([]byte(text))
-	return sego.SegmentsToSlice(v, true)
+func segment(text string) (v []string) {
+	vs := _segmenter.Segment([]byte(text))
+
+	for _, seg := range sego.SegmentsToSlice(vs, true) {
+		if len(seg) > 1 && !is_stop_word(seg) {
+			v = append(v, seg)
+		}
+	}
+	return v
 }

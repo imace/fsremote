@@ -15,10 +15,11 @@ func print(terms []string) {
 	fmt.Println()
 }
 func TestSego(t *testing.T) {
+  t.Skip()
 	segs := _segmenter.Segment([]byte("小明硕士毕业于中国科学院计算所，后在日本京都大学深造"))
 	print(sego.SegmentsToSlice(segs, true))
 }
-func TestMain(m *testing.M) {
+func _TestMain(m *testing.M) {
 	load_dicts()
 	r := m.Run()
 	os.Exit(r)
