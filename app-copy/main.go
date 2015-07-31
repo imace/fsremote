@@ -30,7 +30,7 @@ func main() {
 	panic_error(xiuxiu.EsCreateIfNotExist(target, xiuxiu.EsAppIndice))
 
 	xiuxiu.EsAppScan(src, xiuxiu.EsAppIndice, xiuxiu.EsAppType, func(app xiuxiu.EsApp) {
-		when_es_media(target, app, xiuxiu.EsAppIndice)
+		when_es_media(target, app, "ottpomme2")
 	})
 }
 
