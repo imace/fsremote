@@ -18,20 +18,24 @@ const (
 type Terms struct {
 	Terms []string `json:"terms,omitempty"`
 }
+
 type handler func(w http.ResponseWriter, r *http.Request)
 
 var (
-	addr, sego, face, jieba string
-	_medias                 = make(map[int]*xiuxiu.EsMedia)
-	_fuzzy                  = NewModel()
+	addr, sego, face, jieba, fuzzy string
+	_medias                        = make(map[int]*xiuxiu.EsMedia)
+	_terms                         = make(map[string]float64)
+
+//	_fuzzy                  = NewModel()
 )
 
 func init() {
 	flag.StringVar(&addr, "addr", ":8082", "listen address")
 	flag.StringVar(&face, "face", "172.16.13.16:6767", "libface address")
 	flag.StringVar(&sego, "sego", "172.16.13.16:8081", "sego address")
+	flag.StringVar(&fuzzy, "fuzzy", "172.16.13.16:8089", "sego address")
 	flag.StringVar(&jieba, "jieba", "172.16.13.16:8083", "sego address")
-	_fuzzy.SetDepth(edit_distance)
+	//	_fuzzy.SetDepth(edit_distance)
 }
 
 func main() {
@@ -40,11 +44,11 @@ func main() {
 
 	log.Println("start server")
 	http.Handle("/app/select", handler(handle_app_select))
-	http.Handle("/es/match", handler(handle_es_match))
 	http.Handle("/fsmedia/face/term", handler(handle_face_term))   //t=term&n=
 	http.Handle("/sego/seg", handler(handle_sego_seg))             //text=
 	http.Handle("/jieba/seg", handler(handle_jieba_seg))           //text=
 	http.Handle("/fsmedia/fuzzy/term", handler(handle_fuzzy_term)) //term=
+	http.Handle("/fsmedia/es/term", handler(handle_es_term))       //term=
 	http.Handle("/img/sogou", handler(handle_img_sogou))           //q=&w=300&h=200
 	http.Handle("/img/redirect.jpg", handler(handle_img_redirect)) //q=&w=200&h=400
 	http.Handle("/pinyin/slug", handler(handle_pinyin_slug))       //hans=
@@ -93,7 +97,8 @@ func handle_app_select(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 }
 
-func handle_es_match(w http.ResponseWriter, r *http.Request) {
+//term=
+func handle_es_term(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
 }

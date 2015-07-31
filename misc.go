@@ -43,6 +43,7 @@ func EsMediaScan(client *elastic.Client, indice, mtype string, handler func(EsMe
 	}
 	return nil
 }
+
 func EsAppScan(client *elastic.Client, indice, mtype string, handler func(EsApp)) error {
 	cursor, err := client.Scan(indice).Type(mtype).Size(100).Do()
 	if err != nil {
@@ -65,6 +66,7 @@ func EsAppScan(client *elastic.Client, indice, mtype string, handler func(EsApp)
 	}
 	return nil
 }
+
 func panic_error(err error) {
 	if err != nil {
 		panic(err)

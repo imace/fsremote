@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -31,6 +32,8 @@ func load_medias() {
 		when_es_media(em)
 	})
 }
+
+/*
 func add_fuzzy_words(words []string, weight int, hint string) {
 	for _, word := range words {
 		if len([]rune(word)) > 1 {
@@ -38,17 +41,33 @@ func add_fuzzy_words(words []string, weight int, hint string) {
 		}
 	}
 }
+*/
 func when_es_media(m xiuxiu.EsMedia) {
 	_medias[m.MediaID] = &m
-	weight, id := int(m.Weight*10000), strconv.Itoa(m.MediaID)
-	
-	add_fuzzy_words(m.NameNorm, weight, id)
-	add_fuzzy_words(m.Actors, weight, id)
-	add_fuzzy_words(m.Roles, weight, id)
-	add_fuzzy_words(m.Directors, weight, id)
-	add_fuzzy_words(strings.Fields(m.Tags), weight, id)
+	//	weight, id := int(m.Weight*100), strconv.Itoa(m.MediaID)
+
+	//	add_fuzzy_words(m.NameNorm, weight, id)
+	//	add_fuzzy_words(m.Actors, weight, id)
+	//	add_fuzzy_words(m.Roles, weight, id)
+	//	add_fuzzy_words(m.Directors, weight, id)
+	//	add_fuzzy_words(strings.Fields(m.Tags), weight, id)
+
+	add_terms(m.NameNorm, 1.0, false)
+	add_terms(m.Actors, math.Sqrt(2.0), false)
+	add_terms(m.Directors, math.Sqrt(2.0), false)
+	add_terms(m.Roles, math.Sqrt(2.0), false)
+	add_terms(strings.Fields(m.Tags), math.Sqrt(2.0), true)
 }
 
+func add_terms(terms []string, factor float64, accumulate bool) {
+	for _, t := range terms {
+		if accumulate {
+			_terms[t] = _terms[t] + factor
+		} else {
+			_terms[t] = factor
+		}
+	}
+}
 func face_uniq(dup []FaceSuggest) (v []*xiuxiu.EsMedia) {
 	x := map[int]struct{}{}
 	for _, suggest := range dup {
@@ -141,19 +160,13 @@ func face_suggest(q string, n int) []FaceSuggest {
 	err = json.NewDecoder(resp.Body).Decode(&v)
 	return v
 }
-func fuzzy_suggest(term string) []TermData {
-	_, v := _fuzzy.Suggestions(term, true)
-	return v
-}
-func fuzzy_trim(v []TermData) (ret []*xiuxiu.EsMedia) {
-	medias := map[int]struct{}{}
+
+func fuzzy_trim(v []int) (ret []*xiuxiu.EsMedia) {
 	mh := &MediaHeap{}
 	heap.Init(mh)
-	for _, td := range v {
-		id := atoi(td.Snippet)
-		if _, ok := medias[id]; !ok {
-			medias[id] = struct{}{}
-			heap.Push(mh, _medias[id])
+	for _, id := range v {
+		if m, ok := _medias[id]; ok {
+			heap.Push(mh, m)
 		}
 	}
 	count := 10

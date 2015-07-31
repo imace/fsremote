@@ -89,13 +89,17 @@ func (m *IntString) UnmarshalJSON(data []byte) error {
 }
 
 type EsApp struct {
-	AppID     int    `json:"appId"`
-	DownCount int    `json:"downCount"`
-	Name      string `json:"name"`
-	Pinyin    string `json:"pinyin"`
-	PinyinCn  string `json:"pinyinCn"`
-	PkgName   string `json:"pkgName"`
-	Source    int    `json:"source"`
-	VerCode   int    `json:"verCode"`
-	VerName   string `json:"verName"`
+	AppID     int      `json:"appId"`
+	CatName   string   `json:"catName"`
+	DownCount int      `json:"downCount"`
+	Name      string   `json:"name"`
+	PinyinCn  string   `json:"pinyinCn"`
+	PkgName   string   `json:"pkgName"`
+	Source    int      `json:"source"`
+	TagName   string   `json:"tagName"`
+	VerCode   int      `json:"verCode"`
+	VerName   string   `json:"verName"`
+	Tag       []string `json:"tag,omitempty"`
+	Tags      string   `json:"tags,omitempty"`
+	Weight    int      `json:"weight"`
 }
