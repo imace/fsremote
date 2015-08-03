@@ -43,7 +43,8 @@ func main() {
 	load_medias()
 
 	log.Println("start server")
-	http.Handle("/app/select", handler(handle_app_select))
+	http.Handle("/app/select", handler(handle_app_select))         //name=&pkgs=
+	http.Handle("/app/match", handler(handle_app_match))           //name=
 	http.Handle("/fsmedia/face/term", handler(handle_face_term))   //t=term&n=
 	http.Handle("/sego/seg", handler(handle_sego_seg))             //text=
 	http.Handle("/jieba/seg", handler(handle_jieba_seg))           //text=
@@ -93,8 +94,20 @@ func handle_face_term(w http.ResponseWriter, r *http.Request) {
 	panic_error(json.NewEncoder(w).Encode(map[string]interface{}{"items": x}))
 }
 
+//name=&pkgs=
 func handle_app_select(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
+	name, pkgs := r.FormValue("name"), r.FormValue("pkgs")
+	selected := package_select(pkgs, name)
+	panic_error(json.NewEncoder(w).Encode(map[string]interface{}{"items": selected}))
+}
+
+//name
+func handle_app_match(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	name := r.FormValue("name")
+	matched := package_name_match(name)
+	panic_error(json.NewEncoder(w).Encode(map[string]interface{}{"items": matched}))
 }
 
 //term=

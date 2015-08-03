@@ -1,8 +1,7 @@
 package main
 
 import (
-	"encoding/json"
-	"log"
+	"reflect"
 	"strings"
 
 	"github.com/hearts.zhang/xiuxiu"
@@ -22,20 +21,45 @@ func terms_query(client *elastic.Client, s string) (*elastic.SearchResult, error
 	return results, err
 }
 
-func package_select(s string) (v []xiuxiu.EsApp) {
+func name_match_pkg_filter(client *elastic.Client, pkgs, name string) (*elastic.SearchResult, error) {
+	//	f := elastic.NewTermsQuery("pkgName", to_islice(strings.Fields(s))...)
+	f := elastic.NewTermsFilter("pkgName", to_islice(strings.Fields(pkgs))...)
+	//q := elastic.NewTermQuery("name", "电视优化大师")
+	//qq := elastic.NewQueryStringQuery("电视优化大师").DefaultField("name")
+	qq := elastic.NewMatchQuery("name", name)
+	q := elastic.NewFilteredQuery(qq).Filter(f)
+	results, err := client.Search().Index(xiuxiu.EsAppIndice).Types(xiuxiu.EsAppType).Query(&q).From(0).Size(200).Do()
+	return results, err
+}
+
+func package_name_match(name string) (v []xiuxiu.EsApp) {
+	client, err := elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(xiuxiu.EsAddr))
+	panic_error(err)
+	//	f := elastic.NewTermsQuery("pkgName", to_islice(strings.Fields(s))...)
+	//	f := elastic.NewTermsFilter("pkgName", to_islice(strings.Fields(pkgs))...)
+	//q := elastic.NewTermQuery("name", "电视优化大师")
+	//qq := elastic.NewQueryStringQuery("电视优化大师").DefaultField("name")
+	q := elastic.NewMatchQuery("name", name)
+	//	q := elastic.NewFilteredQuery(qq).Filter(f)
+	results, err := client.Search().Index(xiuxiu.EsAppIndice).Types("app").Query(&q).From(0).Size(200).Do()
+	panic_error(err)
+	for _, iapp := range results.Each(reflect.TypeOf(xiuxiu.EsApp{})) {
+		app := iapp.(xiuxiu.EsApp)
+		v = append(v, app)
+	}
+	return
+}
+
+func package_select(pkgs, name string) (v []xiuxiu.EsApp) {
 	client, err := elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(xiuxiu.EsAddr))
 	panic_error(err)
 
-	result, err := terms_query(client, s)
+	result, err := name_match_pkg_filter(client, pkgs, name)
 	panic_error(err)
-
-	for _, hit := range result.Hits.Hits {
-		var em xiuxiu.EsApp
-		if err := json.Unmarshal(*hit.Source, &em); err != nil {
-			log.Println(err)
-		} else {
-			v = append(v, em)
-		}
+	for _, iapp := range result.Each(reflect.TypeOf(xiuxiu.EsApp{})) {
+		app := iapp.(xiuxiu.EsApp)
+		v = append(v, app)
 	}
+
 	return
 }
