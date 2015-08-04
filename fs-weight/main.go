@@ -22,11 +22,9 @@ type Terms struct {
 type handler func(w http.ResponseWriter, r *http.Request)
 
 var (
-	addr, sego, face, jieba, fuzzy string
-	_medias                        = make(map[int]*xiuxiu.EsMedia)
-	_terms                         = make(map[string]float64)
-
-//	_fuzzy                  = NewModel()
+	addr, sego, face, jieba, fuzzy, es_front string
+	_medias                                  = make(map[int]*xiuxiu.EsMedia)
+	_terms                                   = make(map[string]float64)
 )
 
 func init() {
@@ -35,6 +33,7 @@ func init() {
 	flag.StringVar(&sego, "sego", "172.16.13.16:8081", "sego address")
 	flag.StringVar(&fuzzy, "fuzzy", "172.16.13.16:8089", "sego address")
 	flag.StringVar(&jieba, "jieba", "172.16.13.16:8083", "sego address")
+	flag.StringVar(&es_front, "front", "172.16.13.230:80", "es front-end address")
 	//	_fuzzy.SetDepth(edit_distance)
 }
 
@@ -45,6 +44,7 @@ func main() {
 	log.Println("start server")
 	http.Handle("/app/select", handler(handle_app_select))         //name=&pkgs=
 	http.Handle("/app/match", handler(handle_app_match))           //name=
+	http.Handle("/app/es/select", handler(handle_app_es_select))   //name=&pkgs=
 	http.Handle("/fsmedia/face/term", handler(handle_face_term))   //t=term&n=
 	http.Handle("/sego/seg", handler(handle_sego_seg))             //text=
 	http.Handle("/jieba/seg", handler(handle_jieba_seg))           //text=
@@ -100,6 +100,19 @@ func handle_app_select(w http.ResponseWriter, r *http.Request) {
 	name, pkgs := r.FormValue("name"), r.FormValue("pkgs")
 	selected := package_select(pkgs, name)
 	panic_error(json.NewEncoder(w).Encode(map[string]interface{}{"items": selected}))
+}
+
+//name=&pkgs=
+func handle_app_es_select(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	name, pkgs := r.FormValue("name"), r.FormValue("pkgs")
+	if name == "" {
+		name = r.FormValue("tags")
+	}
+	uri := es_app_select_url(name, pkgs)
+	w.Header().Del("Content-Type")
+	w.Header().Set("Location", uri)
+	w.WriteHeader(http.StatusFound)
 }
 
 //name

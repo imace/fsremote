@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/url"
 	"reflect"
 	"strings"
 
@@ -62,4 +63,14 @@ func package_select(pkgs, name string) (v []xiuxiu.EsApp) {
 	}
 
 	return
+}
+
+func es_app_select_url(name, pkgs string) string {
+	//http://es.fun.tv/app/select?tags=%E6%B5%8F%E8%A7%88%E5%99%A8
+	params := url.Values{}
+	params.Add("tags", name)
+	if len(pkgs) > 0 {
+		params.Add("installed", pkgs)
+	}
+	return "http://" + es_front + "/app/select" + "?" + params.Encode()
 }
