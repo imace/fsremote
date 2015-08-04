@@ -53,7 +53,7 @@ func main() {
 	http.Handle("/img/sogou", handler(handle_img_sogou))           //q=&w=300&h=200
 	http.Handle("/img/redirect.jpg", handler(handle_img_redirect)) //q=&w=200&h=400
 	http.Handle("/pinyin/slug", handler(handle_pinyin_slug))       //hans=
-
+	http.Handle("/detect", handler(handle_report))                 //*=*
 	http.ListenAndServe(addr, nil)
 }
 
@@ -149,6 +149,11 @@ func handle_pinyin_slug(w http.ResponseWriter, r *http.Request) {
 	panic_error(json.NewEncoder(w).Encode(map[string]interface{}{
 		"pinyin": pinyin,
 	}))
+}
+
+func handle_report(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+
 }
 
 func (imp handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
