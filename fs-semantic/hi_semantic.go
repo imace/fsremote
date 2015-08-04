@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 type hi_understand_result struct {
 	Code    string `json:"code"`
 	History string `json:"history"`
@@ -30,6 +32,10 @@ type hi_understand_result struct {
 		Url     string `json:"url,omitempty"`
 		UrlAlt  string `json:"urlAlt,omitempty"`
 	} `json:"general,omitempty"`
+}
+
+func when_understand(result hi_understand_result) {
+	fmt.Println(result)
 }
 
 type his_setting_tv struct {
@@ -104,14 +110,11 @@ const (
 	hicode_flight_oneway          = "FLIGHT_ONEWAY"
 	hicode_flight_twoway          = "FLIGHT_TWOWAY"
 	hicode_flight_info            = "FLIGHT_INFO"
-	hicode_search                 = "SEARCH"
 	hicode_search_song            = "SEARCH_SONG"
 	hicode_search_artist          = "SEARCH_ARTIST"
 	hicode_search_random          = "SEARCH_RANDOM"
 	hicode_search_billboard       = "SEARCH_BILLBOARD "
-	hicode_search                 = "SEARCH"
 	hicode_note_record            = "NOTE_RECORD"
-	hicode_search                 = "SEARCH"
 	hicode_reminder_set           = "REMINDER_SET"
 	hicode_reminder_remove        = "REMINDER_REMOVE"
 	hicode_position               = "POSITION"
@@ -127,7 +130,6 @@ const (
 	hicode_train_oneway           = "TRAIN_ONEWAY"
 	hicode_train_info             = "TRAIN_INFO"
 	hicode_translation            = "TRANSLATION"
-	hicode_search                 = "SEARCH"
 	hicode_play                   = "PLAY"
 	hicode_play_syn               = "PLAY_SYN"
 	hicode_send_to_stb            = "SEND_TO_STB"

@@ -14,7 +14,7 @@ var (
 type handler func(w http.ResponseWriter, r *http.Request)
 
 func init() {
-	flag.StringVar(&addr, "addr", ":8082", "listen address")
+	flag.StringVar(&addr, "addr", ":8086", "listen address")
 
 }
 func main() {
@@ -38,15 +38,26 @@ func from_map(s reflect.Value, v map[string]interface{}) {
 	}
 
 }
+func v_from_map(v interface{}, m map[string]interface{}) {
+	val := reflect.ValueOf(v).Elem()
+	from_map(val, m)
+}
 func handle_semantic_hiv(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	s := r.FormValue("s")
+
+	q, s := r.FormValue("q"), r.FormValue("s")
 	sem := map[string]interface{}{}
 	if s == "" {
 		panic_error(json.NewDecoder(r.Body).Decode(&sem))
-	} else {
+	} else if r.Method == "POST" || r.Method == "PUT" {
 		panic_error(json.Unmarshal([]byte(s), &sem))
 	}
+	if q != "" {
+		sem["text"] = q
+	}
+	var v hi_understand_result
+	v_from_map(&v, sem)
+	when_understand(v)
 }
 func (imp handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
