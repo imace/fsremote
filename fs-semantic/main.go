@@ -20,7 +20,8 @@ func init() {
 func main() {
 	flag.Parse()
 
-	http.Handle("/semantic/hiv", handler(handle_semantic_hiv)) //name=&pkgs=
+	http.Handle("/semantic/hiv", handler(handle_semantic_hiv)) //query= application/json
+	http.Handle("/protocol/hiv", handler(handle_protocol_hiv)) //query= application/json
 	http.ListenAndServe(addr, nil)
 }
 
@@ -46,6 +47,9 @@ func handle_semantic_hiv(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
 	q, s := r.FormValue("q"), r.FormValue("s")
+	if q == "" {
+		q = r.FormValue("query")
+	}
 	var v hi_understand_result
 	if s == "" && (r.Method == "POST" || r.Method == "PUT") {
 		panic_error(json.NewDecoder(r.Body).Decode(&v))
