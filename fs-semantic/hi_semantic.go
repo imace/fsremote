@@ -35,7 +35,7 @@ type hi_understand_result struct {
 }
 
 func when_understand(result hi_understand_result) {
-	fmt.Println(result)
+	fmt.Println(result.Code, result.Service)
 }
 
 type his_setting_tv struct {

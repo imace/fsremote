@@ -46,17 +46,17 @@ func handle_semantic_hiv(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
 	q, s := r.FormValue("q"), r.FormValue("s")
-	sem := map[string]interface{}{}
-	if s == "" {
-		panic_error(json.NewDecoder(r.Body).Decode(&sem))
-	} else if r.Method == "POST" || r.Method == "PUT" {
-		panic_error(json.Unmarshal([]byte(s), &sem))
-	}
-	if q != "" {
-		sem["text"] = q
-	}
 	var v hi_understand_result
-	v_from_map(&v, sem)
+	if s == "" && (r.Method == "POST" || r.Method == "PUT") {
+		panic_error(json.NewDecoder(r.Body).Decode(&v))
+	} else {
+		panic_error(json.Unmarshal([]byte(s), &v))
+	}
+
+	if q != "" {
+		v.Text = q
+	}
+
 	when_understand(v)
 }
 func (imp handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
