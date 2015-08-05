@@ -4,6 +4,8 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -53,7 +55,7 @@ func main() {
 	http.Handle("/img/sogou", handler(handle_img_sogou))           //q=&w=300&h=200
 	http.Handle("/img/redirect.jpg", handler(handle_img_redirect)) //q=&w=200&h=400
 	http.Handle("/pinyin/slug", handler(handle_pinyin_slug))       //hans=
-	http.Handle("/detect", handler(handle_report))                 //*=*
+	http.Handle("/log/", handler(handle_report))                   //*=*
 	http.ListenAndServe(addr, nil)
 }
 
@@ -126,7 +128,14 @@ func handle_app_match(w http.ResponseWriter, r *http.Request) {
 //term=
 func handle_es_term(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
+	term := r.FormValue("term")
 
+	uri := es_media_url(term)
+	fmt.Println(uri)
+
+	w.Header().Del("Content-Type")
+	w.Header().Set("Location", uri)
+	w.WriteHeader(http.StatusFound)
 }
 
 //q=&w=300&h=200
@@ -166,7 +175,23 @@ func handle_pinyin_slug(w http.ResponseWriter, r *http.Request) {
 
 func handle_report(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
+	url := es_log_url(r.URL.Path, r.URL.RawQuery)
 
+	fmt.Println(url)
+
+	req, err := http.NewRequest("POST", url, r.Body)
+	panic_error(err)
+
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	panic_error(err)
+
+	_, err = io.Copy(w, resp.Body)
+	panic_error(err)
+
+	defer resp.Body.Close()
 }
 
 func (imp handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
