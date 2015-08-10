@@ -2,7 +2,7 @@ package main
 
 import "fmt"
 
-type hi_understand_result struct {
+type hi_protocol struct {
 	Code    string `json:"code"`
 	History string `json:"history"`
 	Text    string `json:"text"`
@@ -34,8 +34,10 @@ type hi_understand_result struct {
 	} `json:"general,omitempty"`
 }
 
-func when_understand(result hi_understand_result) {
+func when_protocol(result hi_protocol) sm_semantic {
 	fmt.Println(result.Code, result.Service)
+	var v sm_semantic
+	return v
 }
 
 type his_setting_tv struct {

@@ -20,8 +20,8 @@ func init() {
 func main() {
 	flag.Parse()
 
-	http.Handle("/semantic/hiv", handler(handle_semantic_hiv)) //query= application/json
-	http.Handle("/protocol/hiv", handler(handle_protocol_hiv)) //query= application/json
+	http.Handle("/semantic/hiv", handler(handle_protocol_hiv))         //query= application/json
+	http.Handle("/protocol/hiv", handler(handle_session_protocol_hiv)) //query= application/json
 	http.ListenAndServe(addr, nil)
 }
 
@@ -43,14 +43,32 @@ func v_from_map(v interface{}, m map[string]interface{}) {
 	val := reflect.ValueOf(v).Elem()
 	from_map(val, m)
 }
-func handle_semantic_hiv(w http.ResponseWriter, r *http.Request) {
+func handle_session_protocol_hiv(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
 	q, s := r.FormValue("q"), r.FormValue("s")
 	if q == "" {
 		q = r.FormValue("query")
 	}
-	var v hi_understand_result
+	var v hi_session_protocol
+	if s == "" && (r.Method == "POST" || r.Method == "PUT") {
+		panic_error(json.NewDecoder(r.Body).Decode(&v))
+	} else {
+		panic_error(json.Unmarshal([]byte(s), &v))
+	}
+	v.text = q
+	ret := when_session_protocol(v)
+	panic_error(json.NewEncoder(w).Encode(ret))
+}
+
+func handle_protocol_hiv(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+
+	q, s := r.FormValue("q"), r.FormValue("s")
+	if q == "" {
+		q = r.FormValue("query")
+	}
+	var v hi_protocol
 	if s == "" && (r.Method == "POST" || r.Method == "PUT") {
 		panic_error(json.NewDecoder(r.Body).Decode(&v))
 	} else {
@@ -61,7 +79,8 @@ func handle_semantic_hiv(w http.ResponseWriter, r *http.Request) {
 		v.Text = q
 	}
 
-	when_understand(v)
+	ret := when_protocol(v)
+	panic_error(json.NewEncoder(w).Encode(ret))
 }
 func (imp handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")

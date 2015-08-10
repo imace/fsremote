@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestHiSemantic(t *testing.T) {
+func TestHiProtocol(t *testing.T) {
 	var sem = `{
     "code": "SETTING_EXEC",
     "history": "cn.yunzhisheng.setting",
