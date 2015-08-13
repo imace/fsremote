@@ -11,26 +11,29 @@ import (
 )
 
 var (
-	source, target string
+	target, target_indice string
 )
 
 func init() {
-	flag.StringVar(&source, "source", "http://172.16.13.230:9200", "or http://testbox02.chinacloudapp.cn:9200")
-	flag.StringVar(&target, "target", "http://[fe80::fabc:12ff:fea2:64a6]:9200", "target indice")
-
+	flag.StringVar(&target, "target", "http://[fe80::fabc:12ff:fea2:64a6]:9200", "target")
+	flag.StringVar(&target_indice, "tindice", "fsmedia4", "target indice")
 }
 
 func main() {
 	flag.Parse()
-	src, err := elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(source))
+	src, err := elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(xiuxiu.EsAddr))
 	panic_error(err)
-	target, err := elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(target))
+	t, err := elastic.NewClient(elastic.SetSniff(false), elastic.SetURL(target))
 	panic_error(err)
 
-	panic_error(xiuxiu.EsCreateIfNotExist(target, xiuxiu.EsIndice))
+	if xiuxiu.EsDebug {
+		fmt.Println("cp", xiuxiu.EsAddr, xiuxiu.EsIndice, target, target_indice)
+		return
+	}
+	panic_error(xiuxiu.EsCreateIfNotExist(t, target_indice))
 
 	xiuxiu.EsMediaScan(src, xiuxiu.EsIndice, xiuxiu.EsType, func(em xiuxiu.EsMedia) {
-		when_es_media(target, em, xiuxiu.EsIndice)
+		when_es_media(t, em, target_indice)
 	})
 }
 

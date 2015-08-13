@@ -1,6 +1,9 @@
 package xiuxiu
 
-import "strconv"
+import (
+	"strconv"
+	"time"
+)
 
 type IntString int
 type EsMedia struct {
@@ -17,6 +20,7 @@ type EsMedia struct {
 	Lang        string    `json:"lang"`
 	MediaID     int       `json:"mediaId"`
 	MediaLength IntString `json:"mediaLength"`
+	Isend       IntString `json:"isend"`
 	Month       int       `json:"month"`
 	Name        string    `json:"name"`
 	NameEn      string    `json:"nameEn"`
@@ -30,9 +34,19 @@ type EsMedia struct {
 	Tags        string    `json:"tags"`
 	Week        int       `json:"week"`
 	Weight      float64   `json:"weight"`
+	Score       float64   `json:"score"`
+	Xscore      float64   `json:"_score"`
 	Actors      []string  `json:"actors,omitempty"`
 	Roles       []string  `json:"roles,omitempty"`
+	Plots       string    `json:"plots,omitempty"`
+	Digests     string    `json:"digest,omitempty"`
 }
+
+func (m EsMedia) ReleaseDate() string {
+	const layout = "2006-01-02"
+	return time.Unix(int64(m.Release), 0).Format(layout)
+}
+
 type EsMedias struct {
 	Data []EsMedia `json:"data"`
 	Num  int       `json:"num"`

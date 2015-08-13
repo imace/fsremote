@@ -26,8 +26,6 @@ func remove_char(tags []string) (v []string) {
 		rt := []rune(tag)
 		if len(rt) > 1 || (len(rt) == 1 && rt[0] > 256) { // exclude ascii char
 			v = append(v, tag)
-		} else {
-			log.Println(tag)
 		}
 	}
 	return
@@ -43,12 +41,8 @@ func remove_n_chinese(tags []string) (v []string) {
 }
 func when_es_media(client *elastic.Client, em xiuxiu.EsMedia) {
 	x := strings.Fields(em.Tags)
-	x = append(x, em.Directors...)
-	x = append(x, em.Actors...)
-	x = append(x, em.Roles...)
-	x = append(x, em.NameNorm...)
-	x = remove_char(x)
-	//	x = remove_n_chinese(x)
+	x = append(x, em.Name)
+
 	x = xiuxiu.EsUniqSlice(x)
 	if xiuxiu.EsDebug {
 		fmt.Println(x)

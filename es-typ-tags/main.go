@@ -27,19 +27,9 @@ func main() {
 	})
 }
 
-func uniq_string(a []string) (v []string) {
-	set := make(map[string]struct{})
-	for _, i := range a {
-		set[i] = struct{}{}
-	}
-	for k := range set {
-		v = append(v, k)
-	}
-	return
-}
 func remove_china_hk(tags []string, loc string) (v []string) {
 	if !strings.Contains(loc, "中国香港") {
-		return
+		return tags
 	}
 	for _, tag := range tags {
 		switch tag {
@@ -70,7 +60,7 @@ func loctyp2tag(loc, typ string) (tags []string) {
 
 	if strings.Contains(loc, "中国") && !strings.Contains(loc, "香港") {
 		tags = append(tags, "内地剧")
-		tags = append(tags, "大陆剧")
+		tags = append(tags, "大陆")
 	}
 
 	if strings.Contains(loc, "美国") {
@@ -127,6 +117,9 @@ func location2tag(loc string) (tags []string) {
 		tags = append(tags, "国内")
 		tags = append(tags, "大陆")
 	}
+	if strings.Contains(loc, "中国台湾") {
+		tags = append(tags, "台湾")
+	}
 	if strings.Contains(loc, "中国香港") {
 		tags = append(tags, "港片")
 		tags = append(tags, "香港")
@@ -167,10 +160,11 @@ func when_es_media(client *elastic.Client, em xiuxiu.EsMedia) {
 	tags = append(tags, location2tag(em.Country)...)
 	tags = append(tags, loctyp2tag(em.Country, em.DisplayType)...)
 	tags = remove_char(tags)
-	tags = uniq_string(tags)
+	tags = xiuxiu.EsUniqSlice(tags)
+	tags = remove_china_hk(tags, em.Country)
 	if xiuxiu.EsDebug {
-		fmt.Println(tags)
-		fmt.Println(em.Tags)
+		fmt.Println(em.Name, tags)
+		fmt.Println(em.Name, em.Tags)
 		return
 	}
 	em.Tags = strings.Join(tags, " ")
