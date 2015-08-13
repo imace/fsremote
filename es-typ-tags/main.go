@@ -59,8 +59,10 @@ func loctyp2tag(loc, typ string) (tags []string) {
 	}
 
 	if strings.Contains(loc, "中国") && !strings.Contains(loc, "香港") {
-		tags = append(tags, "内地剧")
+		tags = append(tags, "内地")
 		tags = append(tags, "大陆")
+		tags = append(tags, "内地剧")
+		tags = append(tags, "大陆剧")
 	}
 
 	if strings.Contains(loc, "美国") {

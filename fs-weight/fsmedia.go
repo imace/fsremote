@@ -181,8 +181,8 @@ func fuzzy_trim(v []int) (ret []*xiuxiu.EsMedia) {
 	return
 }
 
-func es_media_url(term string) string {
+func es_media_url(term, path string) string {
 	params := url.Values{"tags": []string{term}}
 	//http://es.fun.tv/media?tags=蝙蝠侠&from=0&to=100
-	return "http://" + es_front + "/media?" + params.Encode()
+	return "http://" + es_front + "/" + path + "?" + params.Encode()
 }

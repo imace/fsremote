@@ -44,18 +44,19 @@ func main() {
 	load_medias()
 
 	log.Println("start server")
-	http.Handle("/app/select", handler(handle_app_select))         //name=&pkgs=
-	http.Handle("/app/match", handler(handle_app_match))           //name=
-	http.Handle("/app/es/select", handler(handle_app_es_select))   //name=&pkgs=
-	http.Handle("/fsmedia/face/term", handler(handle_face_term))   //t=term&n=
-	http.Handle("/sego/seg", handler(handle_sego_seg))             //text=
-	http.Handle("/jieba/seg", handler(handle_jieba_seg))           //text=
-	http.Handle("/fsmedia/fuzzy/term", handler(handle_fuzzy_term)) //term=
-	http.Handle("/fsmedia/es/term", handler(handle_es_term))       //term=
-	http.Handle("/img/sogou", handler(handle_img_sogou))           //q=&w=300&h=200
-	http.Handle("/img/redirect.jpg", handler(handle_img_redirect)) //q=&w=200&h=400
-	http.Handle("/pinyin/slug", handler(handle_pinyin_slug))       //hans=
-	http.Handle("/log/", handler(handle_report))                   //*=*
+	http.Handle("/app/select", handler(handle_app_select))           //name=&pkgs=
+	http.Handle("/app/match", handler(handle_app_match))             //name=
+	http.Handle("/app/es/select", handler(handle_app_es_select))     //name=&pkgs=
+	http.Handle("/fsmedia/face/term", handler(handle_face_term))     //t=term&n=
+	http.Handle("/sego/seg", handler(handle_sego_seg))               //text=
+	http.Handle("/jieba/seg", handler(handle_jieba_seg))             //text=
+	http.Handle("/fsmedia/fuzzy/term", handler(handle_fuzzy_term))   //term=
+	http.Handle("/fsmedia/es/term", handler(handle_es_term))         //term=
+	http.Handle("/fsmedia/es-dev/term", handler(handle_es_dev_term)) //term=&indice=
+	http.Handle("/img/sogou", handler(handle_img_sogou))             //q=&w=300&h=200
+	http.Handle("/img/redirect.jpg", handler(handle_img_redirect))   //q=&w=200&h=400
+	http.Handle("/pinyin/slug", handler(handle_pinyin_slug))         //hans=
+	http.Handle("/log/", handler(handle_report))                     //*=*
 	http.ListenAndServe(addr, nil)
 }
 
@@ -130,7 +131,22 @@ func handle_es_term(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	term := r.FormValue("term")
 
-	uri := es_media_url(term)
+	uri := es_media_url(term, "media")
+	fmt.Println(uri)
+
+	w.Header().Del("Content-Type")
+	w.Header().Set("Location", uri)
+	w.WriteHeader(http.StatusFound)
+}
+
+//term=
+func handle_es_dev_term(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	term, indice := r.FormValue("term"), r.FormValue("indice")
+	if indice == "" {
+		indice = "media4"
+	}
+	uri := es_media_url(term, indice)
 	fmt.Println(uri)
 
 	w.Header().Del("Content-Type")
