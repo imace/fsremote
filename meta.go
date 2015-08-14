@@ -7,39 +7,48 @@ import (
 
 type IntString int
 type EsMedia struct {
-	Actor       string    `json:"actor"`
-	Awards      string    `json:"awards"`
-	Country     string    `json:"country"`
-	CoverPicID  int       `json:"coverPicId"`
-	Day         int       `json:"day"`
-	Director    string    `json:"director"`
-	Directors   []string  `json:"directoren,omitempty"`
-	DisplayType string    `json:"displayType"`
-	FirstCharCn string    `json:"firstCharCn"`
-	Image       string    `json:"image"`
-	Lang        string    `json:"lang"`
-	MediaID     int       `json:"mediaId"`
-	MediaLength IntString `json:"mediaLength"`
-	Isend       IntString `json:"isend"`
-	Month       int       `json:"month"`
-	Name        string    `json:"name"`
-	NameEn      string    `json:"nameEn"`
-	NameOt      string    `json:"nameOt"`
-	NameNorm    []string  `json:"namen,omitempty"`
-	PinyinCn    string    `json:"pinyinCn"`
-	Play        int       `json:"play"`
-	Release     IntString `json:"release"`
-	Role        string    `json:"role"`
-	Seven       int       `json:"seven"`
-	Tags        string    `json:"tags"`
-	Week        int       `json:"week"`
-	Weight      float64   `json:"weight"`
-	Score       float64   `json:"score"`
-	Xscore      float64   `json:"_score"`
-	Actors      []string  `json:"actors,omitempty"`
-	Roles       []string  `json:"roles,omitempty"`
-	Plots       string    `json:"plots,omitempty"`
-	Digests     string    `json:"digest,omitempty"`
+	Area           string    `json:"area,omitempty"`
+	Actor          string    `json:"actor"`
+	Aword          string    `json:"aword"`
+	Brief          string    `json:"brief,omitempty"`
+	Category       string    `json:"category"`
+	ChannelEn      string    `json:"channelEn"`
+	Channel        string    `json:"channel"`
+	Country        string    `json:"country"`
+	CoverPicID     int       `json:"coverPicId"`
+	PlayCountDay   int       `json:"day"`
+	Director       string    `json:"director"`
+	DisplayType    string    `json:"displayType"`
+	Duration       string    `json:"duration,omitempty"`
+	FirstCharCn    string    `json:"firstCharCn"`
+	Image          string    `json:"image"`
+	Lang           string    `json:"lang"`
+	MediaID        int       `json:"mediaId"`
+	MediaLength    IntString `json:"mediaLength"`
+	Isend          IntString `json:"isend"`
+	PlayCountMonth int       `json:"month"`
+	Name           string    `json:"name"`
+	NameEn         string    `json:"nameEn"`
+	NameOt         string    `json:"nameOt"`
+	Pinyin         string    `json:"pinyin,omitempty"`
+	PinyinCn       string    `json:"pinyinCn,omitempty"`
+	PlayCount      int       `json:"play"`
+	Release        IntString `json:"release"`
+	Role           string    `json:"role"`
+	PlayCountSeven int       `json:"seven"`
+	Tags           string    `json:"tags"`
+	PlayCountWeek  int       `json:"week"`
+	Weight         float64   `json:"weight"`
+	Score          float64   `json:"score"`
+	Actors         []string  `json:"actors,omitempty"`
+	Roles          []string  `json:"roles,omitempty"`
+	NameNorm       []string  `json:"namen,omitempty"`
+	Directors      []string  `json:"directoren,omitempty"`
+	Plots          string    `json:"plots,omitempty"`
+	Digests        string    `json:"digest,omitempty"`
+	Portrait       string    `json:"portrait"`
+	Landscape      string    `json:"landscape"`
+	ReleaseDay     string    `json:"releasedate,omitempty"`
 }
 
 func (m EsMedia) ReleaseDate() string {
@@ -107,7 +116,7 @@ type EsApp struct {
 	CatName   string   `json:"catName"`
 	DownCount int      `json:"downCount"`
 	Name      string   `json:"name"`
-	PinyinCn  string   `json:"pinyinCn"`
+	Pinyin    string   `json:"pinyin"`
 	PkgName   string   `json:"pkgName"`
 	Source    int      `json:"source"`
 	TagName   string   `json:"tagName"`

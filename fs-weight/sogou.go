@@ -47,7 +47,7 @@ func sogou_pic(hint string, width_hint, height_hint int) (uri string, width, hei
 	typ := img_dim_type(width_hint, height_hint)
 
 	for _, img := range v.Items {
-		w, h := atoi(img.ThumbWidth), atoi(img.ThumbHeight)
+		w, h := atoi(img.ThumbWidth, 0), atoi(img.ThumbHeight, 0)
 		if typ == img_dim_type(w, h) {
 			uri, width, height = img.Thumburl, w, h
 			break

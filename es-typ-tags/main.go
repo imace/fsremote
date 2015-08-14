@@ -120,12 +120,17 @@ func location2tag(loc string) (tags []string) {
 		tags = append(tags, "大陆")
 	}
 	if strings.Contains(loc, "中国台湾") {
+		tags = append(tags, "港台")
 		tags = append(tags, "台湾")
 	}
 	if strings.Contains(loc, "中国香港") {
 		tags = append(tags, "港片")
 		tags = append(tags, "香港")
-	} else if strings.Contains(loc, "香港") {
+		tags = append(tags, "港台")
+	}
+	if strings.Contains(loc, "香港") {
+		tags = append(tags, "中国香港")
+		tags = append(tags, "港台")
 		tags = append(tags, "港片")
 	}
 	if strings.Contains(loc, "英国") {

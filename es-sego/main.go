@@ -33,6 +33,7 @@ func main() {
 	rpc.HandleHTTP()
 
 	http.Handle("/sego", handler(handle_sego)) //?text=&search=true
+	http.Handle("/sega", handler(handle_sega)) //?text=&search=true
 	http.ListenAndServe(addr, nil)
 }
 
@@ -56,6 +57,17 @@ func handle_sego(w http.ResponseWriter, r *http.Request) {
 
 	panic_error(json.NewEncoder(w).Encode(&terms))
 }
+func handle_sega(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	text, s := r.FormValue("text"), r.FormValue("search")
+	search_mode := true
+	if s == "false" {
+		search_mode = false
+	}
+	//	terms := Terms{segments(text, search_mode)}
+
+	//	panic_error(json.NewEncoder(w).Encode(&terms))
+}
 func (imp handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	defer func() {
@@ -67,14 +79,3 @@ func (imp handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 var _segmenter sego.Segmenter
-
-func segment(text string, search_mode bool) (v []string) {
-	vs := _segmenter.Segment([]byte(text))
-
-	for _, seg := range sego.SegmentsToSlice(vs, search_mode) {
-		if len(seg) > 1 && !is_stop_word(seg) {
-			v = append(v, seg)
-		}
-	}
-	return v
-}

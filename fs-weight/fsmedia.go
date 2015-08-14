@@ -71,7 +71,7 @@ func add_terms(terms []string, factor float64, accumulate bool) {
 func face_uniq(dup []FaceSuggest) (v []*xiuxiu.EsMedia) {
 	x := map[int]struct{}{}
 	for _, suggest := range dup {
-		id := atoi(suggest.Snippet)
+		id := atoi(suggest.Snippet, -1)
 		if _, ok := x[id]; !ok {
 			x[id] = struct{}{}
 			v = append(v, _medias[id])
@@ -181,8 +181,81 @@ func fuzzy_trim(v []int) (ret []*xiuxiu.EsMedia) {
 	return
 }
 
-func es_media_url(term, path string) string {
+func es_media_url(term, path string, from, to int) string {
 	params := url.Values{"tags": []string{term}}
+	if from >= 0 {
+		params.Set("from", strconv.Itoa(from))
+	}
+	if to >= 0 {
+		params.Set("to", strconv.Itoa(to))
+	}
 	//http://es.fun.tv/media?tags=蝙蝠侠&from=0&to=100
 	return "http://" + es_front + "/" + path + "?" + params.Encode()
+}
+
+type MediaSimple struct {
+	Area           string  `json:"area,omitempty"`
+	Actor          string  `json:"actor"`
+	Category       string  `json:"category"`
+	ChannelEn      string  `json:"channelEn"`
+	PlayCountDay   int     `json:"day"`
+	Director       string  `json:"director"`
+	DisplayType    string  `json:"displayType"`
+	Duration       string  `json:"duration,omitempty"`
+	MediaID        int     `json:"mediaId"`
+	MediaLength    int     `json:"mediaLength"`
+	Isend          int     `json:"isend"`
+	PlayCountMonth int     `json:"month"`
+	Name           string  `json:"name"`
+	PlayCount      int     `json:"play"`
+	Role           string  `json:"role"`
+	PlayCountSeven int     `json:"seven"`
+	Tags           string  `json:"tags"`
+	PlayCountWeek  int     `json:"week"`
+	Weight         float64 `json:"weight"`
+	Score          float64 `json:"score"`
+	ReleaseDay     string  `json:"releasedate,omitempty"`
+}
+
+func es_medias_simple(term, path string, from, to int) (medias []MediaSimple, num int) {
+	uri := es_media_url(term, path, from, to)
+	resp, err := http.Get(uri)
+	panic_error(err)
+
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return
+	}
+	var v xiuxiu.EsMedias
+	err = json.NewDecoder(resp.Body).Decode(&v)
+	num = v.Num
+	if v.Data != nil {
+		for _, m := range v.Data {
+			ms := MediaSimple{}
+			ms.Area = m.Area
+			ms.Actor = m.Actor
+			ms.Category = m.Category
+			ms.ChannelEn = m.ChannelEn
+			ms.PlayCountDay = m.PlayCountDay
+			ms.Director = m.Director
+			ms.DisplayType = m.DisplayType
+			ms.Duration = m.Duration
+			ms.MediaID = m.MediaID
+			ms.MediaLength = int(m.MediaLength)
+			ms.Isend = int(m.Isend)
+			ms.PlayCountMonth = m.PlayCountMonth
+			ms.Name = m.Name
+			ms.PlayCount = m.PlayCount
+			ms.Role = m.Role
+			ms.PlayCountSeven = m.PlayCountSeven
+			ms.Tags = m.Tags
+			ms.PlayCountWeek = m.PlayCountWeek
+			ms.Weight = m.Weight
+			ms.Score = m.Score
+			ms.ReleaseDay = m.ReleaseDay
+			medias = append(medias, ms)
+		}
+	}
+
+	return
 }

@@ -20,7 +20,7 @@ func main() {
 		when_es_media(client, em)
 	})
 	for term, info := range _terms {
-		fmt.Println(term, info.weight/info.freq, info.pos)
+		fmt.Println(term, info.weight, info.freq, info.weight/info.freq/info.freq+1, info.pos)
 	}
 }
 
