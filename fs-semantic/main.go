@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"log"
 	"net/http"
 	"reflect"
 )
@@ -19,7 +20,7 @@ func init() {
 }
 func main() {
 	flag.Parse()
-
+	log.Println("starting server")
 	http.Handle("/semantic/hiv", handler(handle_protocol_hiv))         //query= application/json
 	http.Handle("/protocol/hiv", handler(handle_session_protocol_hiv)) //query= application/json
 	http.ListenAndServe(addr, nil)
@@ -44,6 +45,7 @@ func v_from_map(v interface{}, m map[string]interface{}) {
 	from_map(val, m)
 }
 func handle_session_protocol_hiv(w http.ResponseWriter, r *http.Request) {
+	log.Println("handle-session-p")
 	r.ParseForm()
 
 	q, s := r.FormValue("q"), r.FormValue("s")

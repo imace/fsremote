@@ -64,9 +64,9 @@ func handle_sega(w http.ResponseWriter, r *http.Request) {
 	if s == "false" {
 		search_mode = false
 	}
-	//	terms := Terms{segments(text, search_mode)}
+	terms := segments(text, search_mode)
 
-	//	panic_error(json.NewEncoder(w).Encode(&terms))
+	panic_error(json.NewEncoder(w).Encode(map[string]interface{}{"data": terms}))
 }
 func (imp handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
