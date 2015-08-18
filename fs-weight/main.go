@@ -35,7 +35,7 @@ func init() {
 	flag.StringVar(&sego, "sego", "[fe80::fabc:12ff:fea2:64a6]:8081", "sego address")
 	flag.StringVar(&fuzzy, "fuzzy", "[fe80::fabc:12ff:fea2:64a6]:8089", "sego address")
 	flag.StringVar(&jieba, "jieba", "[fe80::fabc:12ff:fea2:64a6]:8083", "sego address")
-	flag.StringVar(&es_front, "front", "172.16.13.230:80", "es front-end address")
+	flag.StringVar(&es_front, "front", "172.17.5.29:80", "es front-end address")
 	//	_fuzzy.SetDepth(edit_distance)
 }
 
